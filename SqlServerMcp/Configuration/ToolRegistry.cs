@@ -10,12 +10,12 @@ internal static class ToolRegistry
         typeof(ListDatabasesTool),
         typeof(ReadDataTool),
         typeof(GetDiagramTool),
+        typeof(DescribeTableTool),
     ];
 
     internal static readonly Type[] DbaTools =
     [
         // Table / query analysis
-        typeof(DescribeTableTool),
         typeof(QueryPlanTool),
 
         // First Responder Kit

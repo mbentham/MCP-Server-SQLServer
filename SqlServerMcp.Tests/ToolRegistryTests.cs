@@ -12,19 +12,19 @@ public class ToolRegistryTests
         Assert.Contains(typeof(ListDatabasesTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(ReadDataTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(GetDiagramTool), ToolRegistry.CoreTools);
+        Assert.Contains(typeof(DescribeTableTool), ToolRegistry.CoreTools);
     }
 
     [Fact]
     public void CoreTools_HasExactCount()
     {
-        Assert.Equal(4, ToolRegistry.CoreTools.Length);
+        Assert.Equal(5, ToolRegistry.CoreTools.Length);
     }
 
     [Fact]
     public void CoreTools_DoesNotContainDbaTools()
     {
         Assert.DoesNotContain(typeof(BlitzTool), ToolRegistry.CoreTools);
-        Assert.DoesNotContain(typeof(DescribeTableTool), ToolRegistry.CoreTools);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), ToolRegistry.CoreTools);
         Assert.DoesNotContain(typeof(PressureDetectorTool), ToolRegistry.CoreTools);
     }
@@ -32,7 +32,6 @@ public class ToolRegistryTests
     [Fact]
     public void DbaTools_ContainsExpectedTypes()
     {
-        Assert.Contains(typeof(DescribeTableTool), ToolRegistry.DbaTools);
         Assert.Contains(typeof(QueryPlanTool), ToolRegistry.DbaTools);
         Assert.Contains(typeof(BlitzTool), ToolRegistry.DbaTools);
         Assert.Contains(typeof(BlitzFirstTool), ToolRegistry.DbaTools);
@@ -53,7 +52,7 @@ public class ToolRegistryTests
     [Fact]
     public void DbaTools_HasExactCount()
     {
-        Assert.Equal(16, ToolRegistry.DbaTools.Length);
+        Assert.Equal(15, ToolRegistry.DbaTools.Length);
     }
 
     [Fact]
@@ -75,11 +74,12 @@ public class ToolRegistryTests
     {
         var types = ToolRegistry.GetToolTypes(enableDbaTools: false).ToList();
 
-        Assert.Equal(4, types.Count);
+        Assert.Equal(5, types.Count);
         Assert.Contains(typeof(ListServersTool), types);
         Assert.Contains(typeof(ListDatabasesTool), types);
         Assert.Contains(typeof(ReadDataTool), types);
         Assert.Contains(typeof(GetDiagramTool), types);
+        Assert.Contains(typeof(DescribeTableTool), types);
     }
 
     [Fact]
@@ -88,7 +88,6 @@ public class ToolRegistryTests
         var types = ToolRegistry.GetToolTypes(enableDbaTools: false).ToList();
 
         Assert.DoesNotContain(typeof(BlitzTool), types);
-        Assert.DoesNotContain(typeof(DescribeTableTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
         Assert.DoesNotContain(typeof(QueryPlanTool), types);
     }
@@ -118,7 +117,6 @@ public class ToolRegistryTests
         var types = ToolRegistry.GetToolTypes(enableDbaTools: true).ToList();
 
         Assert.Contains(typeof(BlitzTool), types);
-        Assert.Contains(typeof(DescribeTableTool), types);
         Assert.Contains(typeof(QueryPlanTool), types);
         Assert.Contains(typeof(WhoIsActiveTool), types);
         Assert.Contains(typeof(PressureDetectorTool), types);

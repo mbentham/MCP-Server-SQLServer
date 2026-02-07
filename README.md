@@ -111,7 +111,7 @@ Add to your Claude Code MCP settings:
 
 ## Tools
 
-The server exposes 20 tools: 4 core tools that are always available, and 16 DBA tools that require `EnableDbaTools: true`.
+The server exposes 20 tools: 5 core tools that are always available, and 15 DBA tools that require `EnableDbaTools: true`.
 
 ### Core Tools
 
@@ -131,11 +131,13 @@ Executes a read-only SQL SELECT query against a specific database. Only `SELECT`
 
 Generates a PlantUML ER diagram for a database showing tables, columns, primary keys, and foreign key relationships. Supports optional schema filtering and a configurable table limit (max 200).
 
+#### `describe_table`
+
+Returns comprehensive metadata about a single table in Markdown format, including columns with data types, nullability, defaults, identity properties, computed expressions, indexes, foreign keys, check constraints, and default constraints.
+
 ### DBA Tools (requires `EnableDbaTools: true`)
 
-#### Table & Query Analysis
-
-**`describe_table`** — Returns comprehensive metadata about a single table in Markdown format, including columns with data types, nullability, defaults, identity properties, computed expressions, indexes, foreign keys, check constraints, and default constraints.
+#### Query Analysis
 
 **`get_query_plan`** — Returns the estimated or actual XML execution plan for a SELECT query. Estimated plans show the optimizer's plan without executing. Actual plans execute the query and include runtime statistics. Uses the same query validation as `read_data`.
 
