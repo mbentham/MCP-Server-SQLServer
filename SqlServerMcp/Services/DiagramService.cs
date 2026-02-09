@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
@@ -35,12 +36,7 @@ public sealed partial class DiagramService : IDiagramService
     public async Task<string> GenerateDiagramAsync(string serverName, string databaseName,
         string? schemaFilter, int maxTables, CancellationToken cancellationToken)
     {
-        if (!_options.Servers.TryGetValue(serverName, out var serverConfig))
-        {
-            var available = string.Join(", ", _options.Servers.Keys.OrderBy(k => k));
-            throw new ArgumentException(
-                $"Server '{serverName}' not found. Available servers: {available}");
-        }
+        var serverConfig = _options.ResolveServer(serverName);
 
         _logger.LogInformation("Generating diagram on server {Server} database {Database} schema {Schema}", serverName, databaseName, schemaFilter ?? "all");
 
@@ -52,9 +48,9 @@ public sealed partial class DiagramService : IDiagramService
         if (tables.Count == 0)
             return GenerateEmptyDiagram(serverName, databaseName, schemaFilter);
 
-        var tableSet = tables.ToHashSet();
-        var columns = await QueryColumnsAsync(connection, tableSet, cancellationToken);
-        var foreignKeys = await QueryForeignKeysAsync(connection, tableSet, cancellationToken);
+        await CreateTableFilterAsync(connection, tables, cancellationToken);
+        var columns = await QueryColumnsAsync(connection, cancellationToken);
+        var foreignKeys = await QueryForeignKeysAsync(connection, cancellationToken);
 
         return BuildPlantUml(serverName, databaseName, schemaFilter, maxTables, tables, columns, foreignKeys);
     }
@@ -96,8 +92,39 @@ public sealed partial class DiagramService : IDiagramService
         return tables;
     }
 
+    private async Task CreateTableFilterAsync(SqlConnection connection,
+        List<TableInfo> tables, CancellationToken cancellationToken)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("CREATE TABLE #diagram_tables (SchemaName sysname NOT NULL, TableName sysname NOT NULL);");
+
+        if (tables.Count > 0)
+        {
+            sb.Append("INSERT INTO #diagram_tables (SchemaName, TableName) VALUES ");
+            for (var i = 0; i < tables.Count; i++)
+            {
+                if (i > 0) sb.Append(", ");
+                sb.Append(CultureInfo.InvariantCulture, $"(@s{i}, @t{i})");
+            }
+            sb.AppendLine(";");
+        }
+
+        await using var cmd = new SqlCommand(sb.ToString(), connection)
+        {
+            CommandTimeout = _options.CommandTimeoutSeconds
+        };
+
+        for (var i = 0; i < tables.Count; i++)
+        {
+            cmd.Parameters.AddWithValue($"@s{i}", tables[i].Schema);
+            cmd.Parameters.AddWithValue($"@t{i}", tables[i].Name);
+        }
+
+        await cmd.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private async Task<List<ColumnInfo>> QueryColumnsAsync(SqlConnection connection,
-        HashSet<TableInfo> tableSet, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT
@@ -112,6 +139,7 @@ public sealed partial class DiagramService : IDiagramService
                 CASE WHEN ixc.column_id IS NOT NULL THEN 1 ELSE 0 END AS IsPrimaryKey,
                 sc.is_identity AS IsIdentity
             FROM INFORMATION_SCHEMA.COLUMNS c
+            INNER JOIN #diagram_tables dt ON dt.SchemaName = c.TABLE_SCHEMA AND dt.TableName = c.TABLE_NAME
             INNER JOIN sys.columns sc
                 ON sc.object_id = OBJECT_ID(QUOTENAME(c.TABLE_SCHEMA) + '.' + QUOTENAME(c.TABLE_NAME))
                 AND sc.name = c.COLUMN_NAME
@@ -122,7 +150,6 @@ public sealed partial class DiagramService : IDiagramService
                 WHERE ix.is_primary_key = 1
             ) ixc ON ixc.object_id = OBJECT_ID(QUOTENAME(c.TABLE_SCHEMA) + '.' + QUOTENAME(c.TABLE_NAME))
                 AND ixc.column_id = sc.column_id
-            WHERE c.TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA')
             ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION
             """;
 
@@ -136,10 +163,6 @@ public sealed partial class DiagramService : IDiagramService
         var columns = new List<ColumnInfo>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            var table = new TableInfo(reader.GetString(0), reader.GetString(1));
-            if (!tableSet.Contains(table))
-                continue;
-
             columns.Add(new ColumnInfo(
                 Schema: reader.GetString(0),
                 TableName: reader.GetString(1),
@@ -157,7 +180,7 @@ public sealed partial class DiagramService : IDiagramService
     }
 
     private async Task<List<ForeignKeyInfo>> QueryForeignKeysAsync(SqlConnection connection,
-        HashSet<TableInfo> tableSet, CancellationToken cancellationToken)
+        CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT
@@ -188,6 +211,10 @@ public sealed partial class DiagramService : IDiagramService
             INNER JOIN sys.tables ref_tab ON ref_tab.object_id = fkc.referenced_object_id
             INNER JOIN sys.columns ref_col ON ref_col.object_id = fkc.referenced_object_id AND ref_col.column_id = fkc.referenced_column_id
             INNER JOIN sys.columns sc ON sc.object_id = fkc.parent_object_id AND sc.column_id = fkc.parent_column_id
+            INNER JOIN #diagram_tables dt_fk
+                ON dt_fk.SchemaName = SCHEMA_NAME(fk_tab.schema_id) AND dt_fk.TableName = fk_tab.name
+            INNER JOIN #diagram_tables dt_ref
+                ON dt_ref.SchemaName = SCHEMA_NAME(ref_tab.schema_id) AND dt_ref.TableName = ref_tab.name
             ORDER BY fk.name, fkc.constraint_column_id
             """;
 
@@ -201,13 +228,6 @@ public sealed partial class DiagramService : IDiagramService
         var foreignKeys = new List<ForeignKeyInfo>();
         while (await reader.ReadAsync(cancellationToken))
         {
-            var fkTable = new TableInfo(reader.GetString(1), reader.GetString(2));
-            var refTable = new TableInfo(reader.GetString(4), reader.GetString(5));
-
-            // Only include FKs where both tables are in the rendered set
-            if (!tableSet.Contains(fkTable) || !tableSet.Contains(refTable))
-                continue;
-
             foreignKeys.Add(new ForeignKeyInfo(
                 FkName: reader.GetString(0),
                 FkSchema: reader.GetString(1),
