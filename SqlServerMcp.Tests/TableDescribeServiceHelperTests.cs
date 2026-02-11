@@ -1,4 +1,5 @@
 using SqlServerMcp.Services;
+using static SqlServerMcp.Services.SchemaQueryHelper;
 using static SqlServerMcp.Services.TableDescribeService;
 
 namespace SqlServerMcp.Tests;
@@ -46,29 +47,25 @@ public class TableDescribeServiceHelperTests
     [Fact]
     public void FormatDataType_VarcharWithLength()
     {
-        var col = new ColumnInfo(1, "c", "varchar", 50, 0, 0, true, null, null, false, 0, 0, false, null, false);
-        Assert.Equal("varchar(50)", TableDescribeService.FormatDataType(col));
+        Assert.Equal("varchar(50)", SchemaQueryHelper.FormatDataType("varchar", 50, 0, 0));
     }
 
     [Fact]
     public void FormatDataType_NvarcharMax()
     {
-        var col = new ColumnInfo(1, "c", "nvarchar", -1, 0, 0, true, null, null, false, 0, 0, false, null, false);
-        Assert.Equal("nvarchar(MAX)", TableDescribeService.FormatDataType(col));
+        Assert.Equal("nvarchar(MAX)", SchemaQueryHelper.FormatDataType("nvarchar", -1, 0, 0));
     }
 
     [Fact]
     public void FormatDataType_DecimalPrecisionScale()
     {
-        var col = new ColumnInfo(1, "c", "decimal", 0, 18, 2, false, null, null, false, 0, 0, false, null, false);
-        Assert.Equal("decimal(18,2)", TableDescribeService.FormatDataType(col));
+        Assert.Equal("decimal(18,2)", SchemaQueryHelper.FormatDataType("decimal", 0, 18, 2));
     }
 
     [Fact]
     public void FormatDataType_Int_NoSuffix()
     {
-        var col = new ColumnInfo(1, "c", "int", 4, 10, 0, false, null, null, false, 0, 0, false, null, false);
-        Assert.Equal("int", TableDescribeService.FormatDataType(col));
+        Assert.Equal("int", SchemaQueryHelper.FormatDataType("int", 4, 10, 0));
     }
 
     // ───────────────────────────────────────────────

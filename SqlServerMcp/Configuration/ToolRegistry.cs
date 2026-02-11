@@ -9,7 +9,8 @@ internal static class ToolRegistry
         typeof(ListServersTool),
         typeof(ListDatabasesTool),
         typeof(ReadDataTool),
-        typeof(GetDiagramTool),
+        typeof(GetPlantUMLDiagramTool),
+        typeof(GetSchemaOverviewTool),
         typeof(DescribeTableTool),
     ];
 

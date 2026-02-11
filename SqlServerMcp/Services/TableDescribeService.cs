@@ -3,6 +3,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SqlServerMcp.Configuration;
+using static SqlServerMcp.Services.SchemaQueryHelper;
 
 namespace SqlServerMcp.Services;
 
@@ -295,7 +296,7 @@ public sealed class TableDescribeService : ITableDescribeService
 
         foreach (var col in columns)
         {
-            var type = FormatDataType(col);
+            var type = FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale);
             var nullable = col.IsNullable ? "YES" : "NO";
             var defaultVal = col.DefaultDefinition ?? "";
 
@@ -422,20 +423,6 @@ public sealed class TableDescribeService : ITableDescribeService
         }
 
         return sb.ToString();
-    }
-
-    internal static string FormatDataType(ColumnInfo col)
-    {
-        return col.DataType.ToLowerInvariant() switch
-        {
-            "nvarchar" or "varchar" or "nchar" or "char" or "varbinary" or "binary"
-                => col.MaxLength == -1
-                    ? $"{col.DataType}(MAX)"
-                    : $"{col.DataType}({col.MaxLength})",
-            "decimal" or "numeric"
-                => $"{col.DataType}({col.Precision},{col.Scale})",
-            _ => col.DataType
-        };
     }
 
     internal static string FormatAction(string action)

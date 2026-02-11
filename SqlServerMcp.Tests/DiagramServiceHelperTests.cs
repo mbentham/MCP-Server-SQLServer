@@ -1,5 +1,6 @@
 using SqlServerMcp.Services;
 using static SqlServerMcp.Services.DiagramService;
+using static SqlServerMcp.Services.SchemaQueryHelper;
 
 namespace SqlServerMcp.Tests;
 
@@ -62,36 +63,31 @@ public class DiagramServiceHelperTests
     [Fact]
     public void FormatDataType_VarcharWithLength()
     {
-        var col = new ColumnInfo("dbo", "t", "c", "varchar", 50, 0, 0, true, false, false);
-        Assert.Equal("varchar(50)", DiagramService.FormatDataType(col));
+        Assert.Equal("varchar(50)", SchemaQueryHelper.FormatDataType("varchar", 50, 0, 0));
     }
 
     [Fact]
     public void FormatDataType_NvarcharMax()
     {
-        var col = new ColumnInfo("dbo", "t", "c", "nvarchar", -1, 0, 0, true, false, false);
-        Assert.Equal("nvarchar(MAX)", DiagramService.FormatDataType(col));
+        Assert.Equal("nvarchar(MAX)", SchemaQueryHelper.FormatDataType("nvarchar", -1, 0, 0));
     }
 
     [Fact]
     public void FormatDataType_DecimalPrecisionScale()
     {
-        var col = new ColumnInfo("dbo", "t", "c", "decimal", 0, 18, 2, false, false, false);
-        Assert.Equal("decimal(18,2)", DiagramService.FormatDataType(col));
+        Assert.Equal("decimal(18,2)", SchemaQueryHelper.FormatDataType("decimal", 0, 18, 2));
     }
 
     [Fact]
     public void FormatDataType_Int_NoSuffix()
     {
-        var col = new ColumnInfo("dbo", "t", "c", "int", 4, 10, 0, false, false, false);
-        Assert.Equal("int", DiagramService.FormatDataType(col));
+        Assert.Equal("int", SchemaQueryHelper.FormatDataType("int", 4, 10, 0));
     }
 
     [Fact]
     public void FormatDataType_BinaryWithLength()
     {
-        var col = new ColumnInfo("dbo", "t", "c", "varbinary", 100, 0, 0, true, false, false);
-        Assert.Equal("varbinary(100)", DiagramService.FormatDataType(col));
+        Assert.Equal("varbinary(100)", SchemaQueryHelper.FormatDataType("varbinary", 100, 0, 0));
     }
 
     // ───────────────────────────────────────────────

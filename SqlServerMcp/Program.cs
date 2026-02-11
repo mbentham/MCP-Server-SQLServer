@@ -6,7 +6,11 @@ using ModelContextProtocol.Server;
 using SqlServerMcp.Configuration;
 using SqlServerMcp.Services;
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 
 // Route all logging to stderr (stdout is reserved for MCP stdio transport)
 builder.Logging.AddConsole(consoleLogOptions =>
@@ -23,6 +27,7 @@ builder.Services.AddSingleton<IValidateOptions<SqlServerMcpOptions>, SqlServerMc
 builder.Services.AddSingleton<IRateLimitingService, RateLimitingService>();
 builder.Services.AddSingleton<ISqlServerService, SqlServerService>();
 builder.Services.AddSingleton<IDiagramService, DiagramService>();
+builder.Services.AddSingleton<ISchemaOverviewService, SchemaOverviewService>();
 builder.Services.AddSingleton<ITableDescribeService, TableDescribeService>();
 builder.Services.AddSingleton<IFirstResponderService, FirstResponderService>();
 builder.Services.AddSingleton<IDarlingDataService, DarlingDataService>();

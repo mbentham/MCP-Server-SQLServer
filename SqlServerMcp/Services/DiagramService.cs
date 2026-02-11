@@ -1,10 +1,10 @@
-using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SqlServerMcp.Configuration;
+using static SqlServerMcp.Services.SchemaQueryHelper;
 
 namespace SqlServerMcp.Services;
 
@@ -20,8 +20,6 @@ public sealed partial class DiagramService : IDiagramService
         _options = options.Value;
         _logger = logger;
     }
-
-    internal sealed record TableInfo(string Schema, string Name);
 
     internal sealed record ColumnInfo(
         string Schema, string TableName, string ColumnName, string DataType,
@@ -44,100 +42,15 @@ public sealed partial class DiagramService : IDiagramService
         await connection.OpenAsync(cancellationToken);
         await connection.ChangeDatabaseAsync(databaseName, cancellationToken);
 
-        var tables = await QueryTablesAsync(connection, schemaFilter, maxTables, cancellationToken);
+        var tables = await QueryTablesAsync(connection, schemaFilter, maxTables, _options.CommandTimeoutSeconds, cancellationToken);
         if (tables.Count == 0)
             return GenerateEmptyDiagram(serverName, databaseName, schemaFilter);
 
-        await CreateTableFilterAsync(connection, tables, cancellationToken);
+        await CreateTableFilterAsync(connection, tables, "#diagram_tables", _options.CommandTimeoutSeconds, cancellationToken);
         var columns = await QueryColumnsAsync(connection, cancellationToken);
         var foreignKeys = await QueryForeignKeysAsync(connection, cancellationToken);
 
         return BuildPlantUml(serverName, databaseName, schemaFilter, maxTables, tables, columns, foreignKeys);
-    }
-
-    private async Task<List<TableInfo>> QueryTablesAsync(SqlConnection connection,
-        string? schemaFilter, int maxTables, CancellationToken cancellationToken)
-    {
-        var sql = new StringBuilder("""
-            SELECT TABLE_SCHEMA, TABLE_NAME
-            FROM INFORMATION_SCHEMA.TABLES
-            WHERE TABLE_TYPE = 'BASE TABLE'
-              AND TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA')
-            """);
-
-        if (schemaFilter is not null)
-            sql.Append(" AND TABLE_SCHEMA = @schemaFilter");
-
-        sql.Append(" ORDER BY TABLE_SCHEMA, TABLE_NAME");
-
-        await using var cmd = new SqlCommand(sql.ToString(), connection)
-        {
-            CommandTimeout = _options.CommandTimeoutSeconds
-        };
-
-        if (schemaFilter is not null)
-            cmd.Parameters.AddWithValue("@schemaFilter", schemaFilter);
-
-        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-
-        var tables = new List<TableInfo>();
-        while (await reader.ReadAsync(cancellationToken))
-        {
-            if (tables.Count >= maxTables)
-                break;
-
-            tables.Add(new TableInfo(reader.GetString(0), reader.GetString(1)));
-        }
-
-        return tables;
-    }
-
-    private async Task CreateTableFilterAsync(SqlConnection connection,
-        List<TableInfo> tables, CancellationToken cancellationToken)
-    {
-        // Create temp table
-        await using var createCmd = new SqlCommand(
-            "CREATE TABLE #diagram_tables (SchemaName sysname NOT NULL, TableName sysname NOT NULL);",
-            connection)
-        {
-            CommandTimeout = _options.CommandTimeoutSeconds
-        };
-        await createCmd.ExecuteNonQueryAsync(cancellationToken);
-
-        if (tables.Count == 0)
-            return;
-
-        // Use multiple batched INSERT statements to avoid SQL Server's 2100 parameter limit
-        // Batch size of 500 means max 1000 parameters per batch (well under the 2100 limit)
-        const int batchSize = 500;
-        for (var batchStart = 0; batchStart < tables.Count; batchStart += batchSize)
-        {
-            var batchEnd = Math.Min(batchStart + batchSize, tables.Count);
-            var batchCount = batchEnd - batchStart;
-
-            var sb = new StringBuilder();
-            sb.Append("INSERT INTO #diagram_tables (SchemaName, TableName) VALUES ");
-
-            for (var i = 0; i < batchCount; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                sb.Append(CultureInfo.InvariantCulture, $"(@s{i}, @t{i})");
-            }
-
-            await using var insertCmd = new SqlCommand(sb.ToString(), connection)
-            {
-                CommandTimeout = _options.CommandTimeoutSeconds
-            };
-
-            for (var i = 0; i < batchCount; i++)
-            {
-                var table = tables[batchStart + i];
-                insertCmd.Parameters.AddWithValue($"@s{i}", table.Schema);
-                insertCmd.Parameters.AddWithValue($"@t{i}", table.Name);
-            }
-
-            await insertCmd.ExecuteNonQueryAsync(cancellationToken);
-        }
     }
 
     private async Task<List<ColumnInfo>> QueryColumnsAsync(SqlConnection connection,
@@ -310,7 +223,7 @@ public sealed partial class DiagramService : IDiagramService
                 if (col.IsIdentity)
                     stereotypes += " <<IDENTITY>>";
 
-                sb.AppendLine($"  * {SanitizePlantUmlText(col.ColumnName)} : {FormatDataType(col)} {stereotypes}");
+                sb.AppendLine($"  * {SanitizePlantUmlText(col.ColumnName)} : {FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale)} {stereotypes}");
             }
 
             if (pkCols.Count > 0 || nonPkCols.Count > 0)
@@ -328,7 +241,7 @@ public sealed partial class DiagramService : IDiagramService
                 sb.Append(' ');
                 sb.Append(SanitizePlantUmlText(col.ColumnName));
                 sb.Append(" : ");
-                sb.Append(FormatDataType(col));
+                sb.Append(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
                 sb.AppendLine(stereotype);
             }
 
@@ -381,20 +294,6 @@ public sealed partial class DiagramService : IDiagramService
         sb.AppendLine();
         sb.AppendLine("@enduml");
         return sb.ToString();
-    }
-
-    internal static string FormatDataType(ColumnInfo col)
-    {
-        return col.DataType.ToLowerInvariant() switch
-        {
-            "nvarchar" or "varchar" or "nchar" or "char" or "varbinary" or "binary"
-                => col.MaxLength == -1
-                    ? $"{col.DataType}(MAX)"
-                    : $"{col.DataType}({col.MaxLength})",
-            "decimal" or "numeric"
-                => $"{col.DataType}({col.Precision},{col.Scale})",
-            _ => col.DataType
-        };
     }
 
     internal static string SanitizeAlias(string input)

@@ -99,7 +99,7 @@ Add to your MCP client configuration (works for both Claude Desktop and Claude C
 
 ## Tools
 
-The server exposes 20 tools: 5 core tools that are always available, and 15 DBA tools that require `EnableDbaTools: true`.
+The server exposes 21 tools: 6 core tools that are always available, and 15 DBA tools that require `EnableDbaTools: true`.
 
 ### Core Tools
 
@@ -108,7 +108,8 @@ The server exposes 20 tools: 5 core tools that are always available, and 15 DBA 
 | `list_servers` | Lists available SQL Server instances configured in `appsettings.json`. Call this first to discover server names. |
 | `list_databases` | Lists all databases on a named server with names, IDs, states, and creation dates. |
 | `read_data` | Executes a read-only SQL SELECT query against a specific database. Only `SELECT` and `WITH` (CTE) queries are allowed. Results returned as JSON with a configurable row limit. |
-| `get_diagram` | Generates a PlantUML ER diagram showing tables, columns, primary keys, and foreign key relationships. Supports schema filtering and a configurable table limit (max 200). |
+| `get_schema_overview` | Returns a concise Markdown overview of the database schema: tables, columns with data types, primary keys, foreign key references, unique constraints, check constraints, and defaults. Designed for loading database context into an AI conversation. |
+| `get_plantuml_diagram` | Generates a PlantUML ER diagram and saves it to a specified file path. Shows tables, columns, primary keys, and foreign key relationships. Supports schema filtering and a configurable table limit (max 200). |
 | `describe_table` | Returns comprehensive table metadata in Markdown: columns with data types, nullability, defaults, identity, computed expressions, indexes, foreign keys, and constraints. |
 
 ### DBA Tools (requires `EnableDbaTools: true`)

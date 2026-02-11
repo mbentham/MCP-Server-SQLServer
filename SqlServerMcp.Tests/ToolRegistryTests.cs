@@ -11,14 +11,15 @@ public class ToolRegistryTests
         Assert.Contains(typeof(ListServersTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(ListDatabasesTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(ReadDataTool), ToolRegistry.CoreTools);
-        Assert.Contains(typeof(GetDiagramTool), ToolRegistry.CoreTools);
+        Assert.Contains(typeof(GetPlantUMLDiagramTool), ToolRegistry.CoreTools);
+        Assert.Contains(typeof(GetSchemaOverviewTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(DescribeTableTool), ToolRegistry.CoreTools);
     }
 
     [Fact]
     public void CoreTools_HasExactCount()
     {
-        Assert.Equal(5, ToolRegistry.CoreTools.Length);
+        Assert.Equal(6, ToolRegistry.CoreTools.Length);
     }
 
     [Fact]
@@ -74,11 +75,12 @@ public class ToolRegistryTests
     {
         var types = ToolRegistry.GetToolTypes(enableDbaTools: false).ToList();
 
-        Assert.Equal(5, types.Count);
+        Assert.Equal(6, types.Count);
         Assert.Contains(typeof(ListServersTool), types);
         Assert.Contains(typeof(ListDatabasesTool), types);
         Assert.Contains(typeof(ReadDataTool), types);
-        Assert.Contains(typeof(GetDiagramTool), types);
+        Assert.Contains(typeof(GetPlantUMLDiagramTool), types);
+        Assert.Contains(typeof(GetSchemaOverviewTool), types);
         Assert.Contains(typeof(DescribeTableTool), types);
     }
 
@@ -97,7 +99,7 @@ public class ToolRegistryTests
     {
         var types = ToolRegistry.GetToolTypes(enableDbaTools: true).ToList();
 
-        Assert.Equal(20, types.Count);
+        Assert.Equal(21, types.Count);
     }
 
     [Fact]
@@ -108,7 +110,9 @@ public class ToolRegistryTests
         Assert.Contains(typeof(ListServersTool), types);
         Assert.Contains(typeof(ListDatabasesTool), types);
         Assert.Contains(typeof(ReadDataTool), types);
-        Assert.Contains(typeof(GetDiagramTool), types);
+        Assert.Contains(typeof(GetPlantUMLDiagramTool), types);
+        Assert.Contains(typeof(GetSchemaOverviewTool), types);
+        Assert.Contains(typeof(DescribeTableTool), types);
     }
 
     [Fact]
