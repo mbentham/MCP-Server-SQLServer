@@ -326,6 +326,45 @@ public class ToolsetManagerTests
         Assert.Single(mcpOptions.ToolCollection);
     }
 
+    [Fact]
+    public void EnableToolset_MultipleToolsets_CombinedToolCount()
+    {
+        var sp = BuildServiceProviderWithDbaServices();
+        var mcpOptions = new McpServerOptions { ToolCollection = [] };
+        var manager = CreateManager(
+            new SqlServerMcpOptions { EnableFirstResponderKit = true, EnableWhoIsActive = true },
+            mcpOptions,
+            sp);
+
+        manager.EnableToolset("first_responder_kit");
+        manager.EnableToolset("whoisactive");
+        Assert.Equal(7, mcpOptions.ToolCollection.Count);
+    }
+
+    [Fact]
+    public void EnableToolset_FRK_ResponseIncludesToolNames()
+    {
+        var sp = BuildServiceProviderWithDbaServices();
+        var mcpOptions = new McpServerOptions { ToolCollection = [] };
+        var manager = CreateManager(
+            new SqlServerMcpOptions { EnableFirstResponderKit = true },
+            mcpOptions,
+            sp);
+
+        var result = manager.EnableToolset("first_responder_kit");
+        var parsed = JsonDocument.Parse(result).RootElement;
+        var toolNames = parsed.GetProperty("tools").EnumerateArray()
+            .Select(t => t.GetString()).ToList();
+
+        Assert.Equal(6, toolNames.Count);
+        Assert.Contains("sp_blitz", toolNames);
+        Assert.Contains("sp_blitz_first", toolNames);
+        Assert.Contains("sp_blitz_cache", toolNames);
+        Assert.Contains("sp_blitz_index", toolNames);
+        Assert.Contains("sp_blitz_who", toolNames);
+        Assert.Contains("sp_blitz_lock", toolNames);
+    }
+
     // ───────────────────────────────────────────────
     // Toolset definitions
     // ───────────────────────────────────────────────
