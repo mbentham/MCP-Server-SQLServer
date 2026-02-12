@@ -40,6 +40,8 @@ Copy the example configuration and edit it with your SQL Server connections:
 cp SqlServerMcp/appsettings.example.json SqlServerMcp/appsettings.json
 ```
 
+> **Note:** Place `appsettings.json` in the same directory as the server DLL. For published builds, copy it into the publish output directory (see [MCP Client Setup](#mcp-client-setup)).
+
 **Example configuration (Windows Authentication - Recommended):**
 
 ```json
@@ -82,8 +84,11 @@ cp SqlServerMcp/appsettings.example.json SqlServerMcp/appsettings.json
 # Build
 dotnet build
 
-# Run
+# Run (development)
 dotnet run --project SqlServerMcp
+
+# Publish (recommended for MCP client use)
+dotnet publish SqlServerMcp -c Release -o SqlServerMcp/publish
 
 # Run tests
 dotnet test
@@ -91,7 +96,31 @@ dotnet test
 
 ## MCP Client Setup
 
-Add to your MCP client configuration (works for both Claude Desktop and Claude Code):
+**Recommended: published build**
+
+MCP clients may launch the server from an arbitrary working directory, which can prevent `dotnet run` from finding `appsettings.json`. Publishing the server to a standalone directory avoids this:
+
+```bash
+dotnet publish SqlServerMcp -c Release -o SqlServerMcp/publish
+cp SqlServerMcp/appsettings.json SqlServerMcp/publish/
+```
+
+Then add to your MCP client configuration (Claude Desktop, Claude Code, etc.):
+
+```json
+{
+  "mcpServers": {
+    "sqlserver": {
+      "command": "dotnet",
+      "args": ["/absolute/path/to/SqlServerMcp/publish/SqlServerMcp.dll"]
+    }
+  }
+}
+```
+
+**Alternative: dotnet run (development only)**
+
+This works when the MCP client launches from the project directory, but may fail if the client uses a different working directory:
 
 ```json
 {
