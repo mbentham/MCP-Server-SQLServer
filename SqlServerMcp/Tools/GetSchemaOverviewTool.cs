@@ -29,6 +29,7 @@ public sealed class GetSchemaOverviewTool
         [Description("Optional schema name to include (e.g. 'dbo'). If specified, only tables in this schema are shown. Overrides excludeSchemas.")] string? includeSchema = null,
         [Description("Optional comma-separated schema names to exclude (e.g. 'audit,staging'). Ignored when includeSchema is specified.")] string? excludeSchemas = null,
         [Description("Maximum number of tables to include (1-200, default 50)")] int maxTables = 50,
+        [Description("When true, shows only primary key and foreign key columns without data types. Useful for high-level relationship maps of large databases.")] bool compact = false,
         CancellationToken cancellationToken = default)
     {
         maxTables = Math.Clamp(maxTables, 1, 200);
@@ -36,6 +37,6 @@ public sealed class GetSchemaOverviewTool
         return await ToolHelper.ExecuteAsync(_rateLimiter, () =>
             _schemaOverviewService.GenerateOverviewAsync(
                 serverName, databaseName, includeSchema, ToolHelper.ParseExcludeSchemas(excludeSchemas),
-                maxTables, cancellationToken), cancellationToken);
+                maxTables, cancellationToken, compact), cancellationToken);
     }
 }

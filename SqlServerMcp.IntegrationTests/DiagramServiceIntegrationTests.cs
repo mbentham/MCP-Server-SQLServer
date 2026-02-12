@@ -104,4 +104,30 @@ public sealed class DiagramServiceIntegrationTests
 
         Assert.Contains("No tables found", result);
     }
+
+    [Fact]
+    public async Task GenerateDiagram_Compact_ShowsOnlyKeyColumns()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateDiagramAsync(Server, Db,
+            includeSchema: null, excludeSchemas: null, maxTables: 100,
+            CancellationToken.None, compact: true);
+
+        // PlantUML envelope
+        Assert.StartsWith("@startuml", result);
+        Assert.Contains("@enduml", result);
+
+        // PK and FK stereotypes present
+        Assert.Contains("<<PK>>", result);
+        Assert.Contains("<<FK>>", result);
+
+        // FK relationships preserved
+        Assert.Contains("FK_Products_Categories", result);
+
+        // No data types in compact mode
+        Assert.DoesNotContain(": int", result);
+        Assert.DoesNotContain(": nvarchar", result);
+        Assert.DoesNotContain(": decimal", result);
+    }
 }

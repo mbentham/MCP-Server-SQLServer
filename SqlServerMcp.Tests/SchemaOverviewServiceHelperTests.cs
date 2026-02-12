@@ -342,4 +342,115 @@ public class SchemaOverviewServiceHelperTests
 
         Assert.Contains("PK, FK Orders.Id", result);
     }
+
+    // ───────────────────────────────────────────────
+    // BuildMarkdown — compact mode
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public void BuildMarkdown_Compact_OnlyPkAndFkColumns()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Orders") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Orders", "OrderId", "int", 4, 10, 0, false, true, true, null),
+            new("dbo", "Orders", "UserId", "int", 4, 10, 0, false, false, false, null),
+            new("dbo", "Orders", "TotalAmount", "decimal", 0, 18, 2, false, false, false, null),
+            new("dbo", "Orders", "Notes", "nvarchar", 500, 0, 0, true, false, false, null),
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("dbo", "Orders", "UserId", "dbo", "Users", "Id"),
+        };
+
+        var result = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, fks, [], [], compact: true);
+
+        // PK column present
+        Assert.Contains("| OrderId |", result);
+        // FK column present
+        Assert.Contains("| UserId |", result);
+        // Non-key columns omitted
+        Assert.DoesNotContain("TotalAmount", result);
+        Assert.DoesNotContain("Notes", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_Compact_SimplifiedTableHeader()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Users") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Users", "Id", "int", 4, 10, 0, false, true, false, null),
+        };
+
+        var result = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, [], [], [], compact: true);
+
+        Assert.Contains("| Column | Key |", result);
+        Assert.Contains("|--------|-----|", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_Compact_NoTypeNullExtraColumns()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Users") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Users", "Id", "int", 4, 10, 0, false, true, true, "(1)"),
+        };
+        var checks = new List<CheckConstraintInfo>
+        {
+            new("dbo", "Users", "Id", "([Id]>(0))"),
+        };
+
+        var result = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, [], checks, [], compact: true);
+
+        // Should not have full-mode headers
+        Assert.DoesNotContain("| Type |", result);
+        Assert.DoesNotContain("| Null |", result);
+        Assert.DoesNotContain("| Extra |", result);
+        // Should not show check constraints or defaults in compact mode
+        Assert.DoesNotContain("CHK:", result);
+        Assert.DoesNotContain("IDENTITY", result);
+        Assert.DoesNotContain("DEFAULT", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_Compact_PreservesFkReferences()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Orders") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Orders", "UserId", "int", 4, 10, 0, false, false, false, null),
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("dbo", "Orders", "UserId", "auth", "Users", "Id"),
+        };
+
+        var result = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, fks, [], [], compact: true);
+
+        Assert.Contains("FK auth.Users.Id", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_Compact_False_UnchangedOutput()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Users") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Users", "Id", "int", 4, 10, 0, false, true, true, null),
+            new("dbo", "Users", "Name", "nvarchar", 100, 0, 0, true, false, false, null),
+        };
+
+        var defaultResult = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, [], [], []);
+        var explicitResult = SchemaOverviewService.BuildMarkdown("srv", "db", null, 50,
+            tables, columns, [], [], [], compact: false);
+
+        Assert.Equal(defaultResult, explicitResult);
+    }
 }

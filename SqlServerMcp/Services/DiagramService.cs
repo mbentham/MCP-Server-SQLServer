@@ -32,7 +32,8 @@ public sealed partial class DiagramService : IDiagramService
         bool IsNullable, bool IsUnique);
 
     public async Task<string> GenerateDiagramAsync(string serverName, string databaseName,
-        string? includeSchema, IReadOnlyList<string>? excludeSchemas, int maxTables, CancellationToken cancellationToken)
+        string? includeSchema, IReadOnlyList<string>? excludeSchemas, int maxTables,
+        CancellationToken cancellationToken, bool compact = false)
     {
         var serverConfig = _options.ResolveServer(serverName);
 
@@ -51,7 +52,7 @@ public sealed partial class DiagramService : IDiagramService
         var columns = await QueryColumnsAsync(connection, tables, cancellationToken);
         var foreignKeys = await QueryForeignKeysAsync(connection, tables, cancellationToken);
 
-        return BuildPlantUml(serverName, databaseName, includeSchema, maxTables, tables, columns, foreignKeys);
+        return BuildPlantUml(serverName, databaseName, includeSchema, maxTables, tables, columns, foreignKeys, compact);
     }
 
     private async Task<List<ColumnInfo>> QueryColumnsAsync(SqlConnection connection,
@@ -182,7 +183,7 @@ public sealed partial class DiagramService : IDiagramService
 
     internal static string BuildPlantUml(string serverName, string databaseName,
         string? includeSchema, int maxTables, List<TableInfo> tables,
-        List<ColumnInfo> columns, List<ForeignKeyInfo> foreignKeys)
+        List<ColumnInfo> columns, List<ForeignKeyInfo> foreignKeys, bool compact = false)
     {
         var sb = new StringBuilder();
         sb.AppendLine("@startuml");
@@ -223,33 +224,62 @@ public sealed partial class DiagramService : IDiagramService
             var pkCols = tableCols.Where(c => c.IsPrimaryKey).ToList();
             var nonPkCols = tableCols.Where(c => !c.IsPrimaryKey).ToList();
 
-            // PK columns above separator
-            foreach (var col in pkCols)
+            if (compact)
             {
-                var stereotypes = "<<PK>>";
-                if (col.IsIdentity)
-                    stereotypes += " <<IDENTITY>>";
+                // PK columns — name + stereotypes only, no data type
+                foreach (var col in pkCols)
+                {
+                    var stereotypes = "<<PK>>";
+                    if (fkColumns.Contains((col.Schema, col.TableName, col.ColumnName)))
+                        stereotypes += " <<FK>>";
+                    if (col.IsIdentity)
+                        stereotypes += " <<IDENTITY>>";
+                    sb.AppendLine($"  * {SanitizePlantUmlText(col.ColumnName)} {stereotypes}");
+                }
 
-                sb.AppendLine($"  * {SanitizePlantUmlText(col.ColumnName)} : {FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale)} {stereotypes}");
+                // FK columns only (non-PK columns that are foreign keys)
+                var fkNonPkCols = nonPkCols.Where(c =>
+                    fkColumns.Contains((c.Schema, c.TableName, c.ColumnName))).ToList();
+
+                if (pkCols.Count > 0 && fkNonPkCols.Count > 0)
+                    sb.AppendLine("  --");
+
+                foreach (var col in fkNonPkCols)
+                {
+                    var prefix = col.IsNullable ? "  " : "  *";
+                    sb.AppendLine($"{prefix} {SanitizePlantUmlText(col.ColumnName)} <<FK>>");
+                }
             }
-
-            if (pkCols.Count > 0 || nonPkCols.Count > 0)
-                sb.AppendLine("  --");
-
-            // Non-PK columns
-            foreach (var col in nonPkCols)
+            else
             {
-                var prefix = col.IsNullable ? "  " : "  *";
-                var stereotype = fkColumns.Contains((col.Schema, col.TableName, col.ColumnName))
-                    ? " <<FK>>"
-                    : "";
+                // PK columns above separator
+                foreach (var col in pkCols)
+                {
+                    var stereotypes = "<<PK>>";
+                    if (col.IsIdentity)
+                        stereotypes += " <<IDENTITY>>";
 
-                sb.Append(prefix);
-                sb.Append(' ');
-                sb.Append(SanitizePlantUmlText(col.ColumnName));
-                sb.Append(" : ");
-                sb.Append(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
-                sb.AppendLine(stereotype);
+                    sb.AppendLine($"  * {SanitizePlantUmlText(col.ColumnName)} : {FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale)} {stereotypes}");
+                }
+
+                if (pkCols.Count > 0 || nonPkCols.Count > 0)
+                    sb.AppendLine("  --");
+
+                // Non-PK columns
+                foreach (var col in nonPkCols)
+                {
+                    var prefix = col.IsNullable ? "  " : "  *";
+                    var stereotype = fkColumns.Contains((col.Schema, col.TableName, col.ColumnName))
+                        ? " <<FK>>"
+                        : "";
+
+                    sb.Append(prefix);
+                    sb.Append(' ');
+                    sb.Append(SanitizePlantUmlText(col.ColumnName));
+                    sb.Append(" : ");
+                    sb.Append(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
+                    sb.AppendLine(stereotype);
+                }
             }
 
             sb.AppendLine("}");

@@ -447,4 +447,150 @@ public class DiagramServiceHelperTests
         // Should not contain separator or column lines
         Assert.DoesNotContain("<<PK>>", result);
     }
+
+    // ───────────────────────────────────────────────
+    // BuildPlantUml — compact mode
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public void BuildPlantUml_Compact_ShowsOnlyPkAndFkColumns()
+    {
+        var tables = new List<TableInfo>
+        {
+            new("dbo", "Parent"),
+            new("dbo", "Child")
+        };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Parent", "Id", "int", 0, 0, 0, false, true, true),
+            new("dbo", "Parent", "Name", "nvarchar", 100, 0, 0, false, false, false),
+            new("dbo", "Child", "Id", "int", 0, 0, 0, false, true, true),
+            new("dbo", "Child", "ParentId", "int", 0, 0, 0, false, false, false),
+            new("dbo", "Child", "Description", "nvarchar", 500, 0, 0, true, false, false)
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("FK_Child_Parent", "dbo", "Child", "ParentId", "dbo", "Parent", "Id", false, false)
+        };
+
+        var result = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: true);
+
+        // PK columns present
+        Assert.Contains("* Id <<PK>>", result);
+        // FK column present
+        Assert.Contains("ParentId <<FK>>", result);
+        // Non-key columns omitted
+        Assert.DoesNotContain("Name", result);
+        Assert.DoesNotContain("Description", result);
+    }
+
+    [Fact]
+    public void BuildPlantUml_Compact_OmitsDataTypes()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Users") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Users", "Id", "int", 0, 0, 0, false, true, true),
+            new("dbo", "Users", "Name", "nvarchar", 100, 0, 0, false, false, false)
+        };
+        var fks = new List<ForeignKeyInfo>();
+
+        var result = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: true);
+
+        // No data type annotations in compact mode
+        Assert.DoesNotContain(": int", result);
+        Assert.DoesNotContain(": nvarchar", result);
+    }
+
+    [Fact]
+    public void BuildPlantUml_Compact_PreservesRelationships()
+    {
+        var tables = new List<TableInfo>
+        {
+            new("dbo", "Parent"),
+            new("dbo", "Child")
+        };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Parent", "Id", "int", 0, 0, 0, false, true, false),
+            new("dbo", "Child", "ParentId", "int", 0, 0, 0, false, false, false)
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("FK_Child_Parent", "dbo", "Child", "ParentId", "dbo", "Parent", "Id", false, false)
+        };
+
+        var result = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: true);
+
+        // FK relationship lines unchanged
+        Assert.Contains("dbo_Parent ||--|{ dbo_Child : \"FK_Child_Parent\"", result);
+    }
+
+    [Fact]
+    public void BuildPlantUml_Compact_FkColumnShowsFkStereotype()
+    {
+        var tables = new List<TableInfo>
+        {
+            new("dbo", "Parent"),
+            new("dbo", "Child")
+        };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Parent", "Id", "int", 0, 0, 0, false, true, false),
+            new("dbo", "Child", "Id", "int", 0, 0, 0, false, true, false),
+            new("dbo", "Child", "ParentId", "int", 0, 0, 0, true, false, false)
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("FK_Child_Parent", "dbo", "Child", "ParentId", "dbo", "Parent", "Id", true, false)
+        };
+
+        var result = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: true);
+
+        // FK column should have <<FK>> stereotype
+        Assert.Contains("ParentId <<FK>>", result);
+        // Nullable FK column should not have * prefix
+        Assert.Contains("   ParentId <<FK>>", result);
+    }
+
+    [Fact]
+    public void BuildPlantUml_Compact_PkThatIsAlsoFk_ShowsBothStereotypes()
+    {
+        var tables = new List<TableInfo>
+        {
+            new("dbo", "Parent"),
+            new("dbo", "Child")
+        };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Parent", "Id", "int", 0, 0, 0, false, true, true),
+            new("dbo", "Child", "ParentId", "int", 0, 0, 0, false, true, false)
+        };
+        var fks = new List<ForeignKeyInfo>
+        {
+            new("FK_Child_Parent", "dbo", "Child", "ParentId", "dbo", "Parent", "Id", false, true)
+        };
+
+        var result = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: true);
+
+        // PK column that is also FK should show both stereotypes
+        Assert.Contains("* ParentId <<PK>> <<FK>>", result);
+    }
+
+    [Fact]
+    public void BuildPlantUml_Compact_False_UnchangedOutput()
+    {
+        var tables = new List<TableInfo> { new("dbo", "Users") };
+        var columns = new List<ColumnInfo>
+        {
+            new("dbo", "Users", "Id", "int", 0, 0, 0, false, true, true),
+            new("dbo", "Users", "Name", "nvarchar", 100, 0, 0, false, false, false)
+        };
+        var fks = new List<ForeignKeyInfo>();
+
+        var defaultResult = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks);
+        var explicitResult = DiagramService.BuildPlantUml("srv", "db", null, 10, tables, columns, fks, compact: false);
+
+        Assert.Equal(defaultResult, explicitResult);
+    }
 }

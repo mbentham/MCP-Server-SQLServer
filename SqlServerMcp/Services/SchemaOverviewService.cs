@@ -35,7 +35,8 @@ public sealed class SchemaOverviewService : ISchemaOverviewService
     internal sealed record UniqueColumnInfo(string Schema, string TableName, string ColumnName);
 
     public async Task<string> GenerateOverviewAsync(string serverName, string databaseName,
-        string? includeSchema, IReadOnlyList<string>? excludeSchemas, int maxTables, CancellationToken cancellationToken)
+        string? includeSchema, IReadOnlyList<string>? excludeSchemas, int maxTables,
+        CancellationToken cancellationToken, bool compact = false)
     {
         var serverConfig = _options.ResolveServer(serverName);
 
@@ -58,7 +59,7 @@ public sealed class SchemaOverviewService : ISchemaOverviewService
         var uniqueColumns = await QueryUniqueColumnsAsync(connection, tables, cancellationToken);
 
         return BuildMarkdown(serverName, databaseName, includeSchema, maxTables,
-            tables, columns, foreignKeys, checkConstraints, uniqueColumns);
+            tables, columns, foreignKeys, checkConstraints, uniqueColumns, compact);
     }
 
     private async Task<List<ColumnInfo>> QueryColumnsAsync(SqlConnection connection,
@@ -263,7 +264,8 @@ public sealed class SchemaOverviewService : ISchemaOverviewService
     internal static string BuildMarkdown(string serverName, string databaseName,
         string? includeSchema, int maxTables, List<TableInfo> tables,
         List<ColumnInfo> columns, List<ForeignKeyInfo> foreignKeys,
-        List<CheckConstraintInfo> checkConstraints, List<UniqueColumnInfo> uniqueColumns)
+        List<CheckConstraintInfo> checkConstraints, List<UniqueColumnInfo> uniqueColumns,
+        bool compact = false)
     {
         // Build lookups for FK, check constraint, and unique annotations
         var fkLookup = foreignKeys
@@ -308,59 +310,81 @@ public sealed class SchemaOverviewService : ISchemaOverviewService
                 continue;
             }
 
-            sb.AppendLine("| Column | Type | Null | Key | Extra |");
-            sb.AppendLine("|--------|------|------|-----|-------|");
-
-            foreach (var col in tableCols)
+            if (compact)
             {
-                var type = SanitizeMarkdownCell(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
-                var nullable = col.IsNullable ? "YES" : "NO";
+                sb.AppendLine("| Column | Key |");
+                sb.AppendLine("|--------|-----|");
 
-                // Build Key column
-                var keys = new List<string>();
-                if (col.IsPrimaryKey)
-                    keys.Add("PK");
-                if (fkLookup.Contains((col.Schema, col.TableName, col.ColumnName)))
+                // Only emit PK and FK columns
+                foreach (var col in tableCols.Where(c =>
+                    c.IsPrimaryKey || fkLookup.Contains((c.Schema, c.TableName, c.ColumnName))))
                 {
-                    foreach (var fk in fkLookup[(col.Schema, col.TableName, col.ColumnName)])
-                    {
-                        var refTable = fk.RefSchema == "dbo"
-                            ? SanitizeMarkdownCell(fk.RefTable)
-                            : $"{SanitizeMarkdownCell(fk.RefSchema)}.{SanitizeMarkdownCell(fk.RefTable)}";
-                        keys.Add($"FK {refTable}.{SanitizeMarkdownCell(fk.RefColumn)}");
-                    }
+                    var key = BuildKeyAnnotation(col, fkLookup, uniqueSet: null);
+                    sb.AppendLine($"| {SanitizeMarkdownCell(col.ColumnName)} | {key} |");
                 }
-                if (uniqueSet.Contains((col.Schema, col.TableName, col.ColumnName)))
-                    keys.Add("UQ");
-                var key = string.Join(", ", keys);
-
-                // Build Extra column
-                var extras = new List<string>();
-                if (col.IsIdentity)
-                    extras.Add("IDENTITY");
-                if (col.DefaultDefinition is not null)
-                    extras.Add($"DEFAULT {SanitizeMarkdownCell(col.DefaultDefinition)}");
-                if (checkByColumn.Contains((col.Schema, col.TableName, col.ColumnName)))
-                {
-                    foreach (var chk in checkByColumn[(col.Schema, col.TableName, col.ColumnName)])
-                        extras.Add($"CHK: {SanitizeMarkdownCell(chk.Definition)}");
-                }
-                var extra = string.Join(", ", extras);
-
-                sb.AppendLine($"| {SanitizeMarkdownCell(col.ColumnName)} | {type} | {nullable} | {key} | {extra} |");
+                // No table-level check constraints in compact mode
             }
-
-            // Table-level check constraints
-            if (checkByTable.Contains((table.Schema, table.Name)))
+            else
             {
-                foreach (var chk in checkByTable[(table.Schema, table.Name)])
-                    sb.AppendLine($"| | | | | CHK: {SanitizeMarkdownCell(chk.Definition)} |");
+                sb.AppendLine("| Column | Type | Null | Key | Extra |");
+                sb.AppendLine("|--------|------|------|-----|-------|");
+
+                foreach (var col in tableCols)
+                {
+                    var type = SanitizeMarkdownCell(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
+                    var nullable = col.IsNullable ? "YES" : "NO";
+                    var key = BuildKeyAnnotation(col, fkLookup, uniqueSet);
+
+                    // Build Extra column
+                    var extras = new List<string>();
+                    if (col.IsIdentity)
+                        extras.Add("IDENTITY");
+                    if (col.DefaultDefinition is not null)
+                        extras.Add($"DEFAULT {SanitizeMarkdownCell(col.DefaultDefinition)}");
+                    if (checkByColumn.Contains((col.Schema, col.TableName, col.ColumnName)))
+                    {
+                        foreach (var chk in checkByColumn[(col.Schema, col.TableName, col.ColumnName)])
+                            extras.Add($"CHK: {SanitizeMarkdownCell(chk.Definition)}");
+                    }
+                    var extra = string.Join(", ", extras);
+
+                    sb.AppendLine($"| {SanitizeMarkdownCell(col.ColumnName)} | {type} | {nullable} | {key} | {extra} |");
+                }
+
+                // Table-level check constraints
+                if (checkByTable.Contains((table.Schema, table.Name)))
+                {
+                    foreach (var chk in checkByTable[(table.Schema, table.Name)])
+                        sb.AppendLine($"| | | | | CHK: {SanitizeMarkdownCell(chk.Definition)} |");
+                }
             }
 
             sb.AppendLine();
         }
 
         return sb.ToString();
+    }
+
+    internal static string BuildKeyAnnotation(ColumnInfo col,
+        ILookup<(string FkSchema, string FkTable, string FkColumn), ForeignKeyInfo> fkLookup,
+        HashSet<(string Schema, string Table, string Column)>? uniqueSet)
+    {
+        var keys = new List<string>();
+        if (col.IsPrimaryKey)
+            keys.Add("PK");
+        if (fkLookup.Contains((col.Schema, col.TableName, col.ColumnName)))
+        {
+            foreach (var fk in fkLookup[(col.Schema, col.TableName, col.ColumnName)])
+            {
+                var refTable = fk.RefSchema == "dbo"
+                    ? SanitizeMarkdownCell(fk.RefTable)
+                    : $"{SanitizeMarkdownCell(fk.RefSchema)}.{SanitizeMarkdownCell(fk.RefTable)}";
+                keys.Add($"FK {refTable}.{SanitizeMarkdownCell(fk.RefColumn)}");
+            }
+        }
+        if (uniqueSet is not null && uniqueSet.Contains((col.Schema, col.TableName, col.ColumnName)))
+            keys.Add("UQ");
+        return string.Join(", ", keys);
     }
 
     /// <summary>

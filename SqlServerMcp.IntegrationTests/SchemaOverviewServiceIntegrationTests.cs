@@ -97,4 +97,34 @@ public sealed class SchemaOverviewServiceIntegrationTests
 
         Assert.Contains("No tables found", result);
     }
+
+    [Fact]
+    public async Task GenerateOverview_Compact_ShowsOnlyKeyColumns()
+    {
+        var service = ServiceFactory.CreateSchemaOverviewService(_fixture.ConnectionString);
+
+        var result = await service.GenerateOverviewAsync(Server, Db,
+            includeSchema: null, excludeSchemas: null, maxTables: 100,
+            CancellationToken.None, compact: true);
+
+        // Header still present
+        Assert.Contains($"# Schema: {Db}", result);
+
+        // Compact table header
+        Assert.Contains("| Column | Key |", result);
+
+        // PK and FK annotations
+        Assert.Contains("PK", result);
+        Assert.Contains("FK", result);
+
+        // Should not have full-mode columns
+        Assert.DoesNotContain("| Type |", result);
+        Assert.DoesNotContain("| Null |", result);
+        Assert.DoesNotContain("| Extra |", result);
+
+        // No check constraints, defaults, or identity in compact mode
+        Assert.DoesNotContain("CHK:", result);
+        Assert.DoesNotContain("DEFAULT", result);
+        Assert.DoesNotContain("IDENTITY", result);
+    }
 }
