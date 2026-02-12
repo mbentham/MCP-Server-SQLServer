@@ -166,8 +166,8 @@ By default, the server exposes up to 21 tools: 7 core tools that are always avai
 | `list_servers` | Lists available SQL Server instances configured in `appsettings.json`. Call this first to discover server names. |
 | `list_databases` | Lists all databases on a named server with names, IDs, states, and creation dates. |
 | `read_data` | Executes a read-only SQL SELECT query against a specific database. Only `SELECT` and `WITH` (CTE) queries are allowed. Results returned as JSON with a configurable row limit. |
-| `get_schema_overview` | Returns a concise Markdown overview of the database schema: tables, columns with data types, primary keys, foreign key references, unique constraints, check constraints, and defaults. Designed for loading database context into an AI conversation. |
-| `get_plantuml_diagram` | Generates a PlantUML ER diagram and saves it to a specified file path. Shows tables, columns, primary keys, and foreign key relationships. Supports schema filtering and a configurable table limit (max 200). |
+| `get_schema_overview` | Returns a concise Markdown overview of the database schema: tables, columns with data types, primary keys, foreign key references, unique constraints, check constraints, and defaults. Supports a `compact` mode that shows only key columns for high-level relationship maps. Designed for loading database context into an AI conversation. |
+| `get_plantuml_diagram` | Generates a PlantUML ER diagram and saves it to a specified file path. Shows tables, columns, primary keys, and foreign key relationships with smart cardinality. Supports a `compact` mode that shows only key columns without data types. Supports schema filtering and a configurable table limit (max 200). |
 | `describe_table` | Returns comprehensive table metadata in Markdown: columns with data types, nullability, defaults, identity, computed expressions, indexes, foreign keys, and constraints. |
 | `get_query_plan` | Returns the estimated or actual XML execution plan for a SELECT query. Estimated plans show the optimizer's plan without executing; actual plans include runtime statistics. |
 
@@ -281,7 +281,7 @@ The SQL account should follow least-privilege principles: grant only `SELECT` pe
 The project follows a **two-layer design**: Tools → Services.
 
 - **Tools** (`SqlServerMcp/Tools/`) — MCP endpoint definitions decorated with `[McpServerTool]`, auto-discovered at startup. Each tool is a thin wrapper that validates inputs and delegates to a service.
-- **Services** (`SqlServerMcp/Services/`) — Business logic and database access, registered as singletons via DI. Services handle connection management, query execution, and result serialization.
+- **Services** (`SqlServerMcp/Services/`) — Business logic and database access, registered as singletons via DI. Nine service interfaces handle connection management, query execution, result serialization, rate limiting, and dynamic toolset management.
 - **QueryValidator** (`SqlServerMcp/Services/QueryValidator.cs`) — Static AST-based query validator using `TSql170Parser` and the visitor pattern for security enforcement.
 
 To add a new tool: create a class in `Tools/` with a static async method decorated with `[McpServerTool]`, inject services via method parameters, and it will be auto-registered at startup. See `CLAUDE.md` for detailed instructions.
