@@ -141,7 +141,19 @@ public sealed class SqlServerService : ISqlServerService
         return JsonSerializer.Serialize(response, JsonOptions);
     }
 
-    public async Task<string> GetEstimatedPlanAsync(string serverName, string databaseName, string query, CancellationToken cancellationToken)
+    public Task<string> GetEstimatedPlanAsync(string serverName, string databaseName, string query, CancellationToken cancellationToken) =>
+        GetPlanCoreAsync(serverName, databaseName, query, "SHOWPLAN_XML", "estimated",
+            ExtractFirstResultAsync, cancellationToken);
+
+    public Task<string> GetActualPlanAsync(string serverName, string databaseName, string query, CancellationToken cancellationToken) =>
+        GetPlanCoreAsync(serverName, databaseName, query, "STATISTICS XML", "actual",
+            ExtractShowplanResultAsync, cancellationToken);
+
+    private async Task<string> GetPlanCoreAsync(
+        string serverName, string databaseName, string query,
+        string settingName, string planTypeLabel,
+        Func<SqlDataReader, CancellationToken, Task<string?>> extractPlanXml,
+        CancellationToken cancellationToken)
     {
         var serverConfig = _options.ResolveServer(serverName);
 
@@ -149,7 +161,7 @@ public sealed class SqlServerService : ISqlServerService
         if (validationError is not null)
             throw new InvalidOperationException(validationError);
 
-        _logger.LogInformation("Getting estimated plan on server {Server} database {Database} ({QueryLength} chars)", serverName, databaseName, query.Length);
+        _logger.LogInformation("Getting {PlanType} plan on server {Server} database {Database} ({QueryLength} chars)", planTypeLabel, serverName, databaseName, query.Length);
         _logger.LogDebug("Query text: {Query}", query);
 
         await using var connection = new SqlConnection(serverConfig.ConnectionString);
@@ -158,11 +170,11 @@ public sealed class SqlServerService : ISqlServerService
 
         try
         {
-            await using var showplanOn = new SqlCommand("SET SHOWPLAN_XML ON", connection)
+            await using var settingOn = new SqlCommand($"SET {settingName} ON", connection)
             {
                 CommandTimeout = _options.CommandTimeoutSeconds
             };
-            await showplanOn.ExecuteNonQueryAsync(cancellationToken);
+            await settingOn.ExecuteNonQueryAsync(cancellationToken);
 
             await using var command = new SqlCommand(query, connection)
             {
@@ -170,17 +182,13 @@ public sealed class SqlServerService : ISqlServerService
             };
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-            string? planXml = null;
-            if (await reader.ReadAsync(cancellationToken))
-            {
-                planXml = reader.GetString(0);
-            }
+            var planXml = await extractPlanXml(reader, cancellationToken);
 
             var response = new Dictionary<string, object?>
             {
                 ["server"] = serverName,
                 ["database"] = databaseName,
-                ["planType"] = "estimated",
+                ["planType"] = planTypeLabel,
                 ["planXml"] = planXml
             };
 
@@ -189,90 +197,43 @@ public sealed class SqlServerService : ISqlServerService
         finally
         {
             using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.CommandTimeoutSeconds));
-            await using var showplanOff = new SqlCommand("SET SHOWPLAN_XML OFF", connection)
+            await using var settingOff = new SqlCommand($"SET {settingName} OFF", connection)
             {
                 CommandTimeout = _options.CommandTimeoutSeconds
             };
             try
             {
-                await showplanOff.ExecuteNonQueryAsync(cleanupCts.Token);
+                await settingOff.ExecuteNonQueryAsync(cleanupCts.Token);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to reset SHOWPLAN_XML setting during cleanup");
+                _logger.LogWarning(ex, "Failed to reset {SettingName} setting during cleanup", settingName);
             }
         }
     }
 
-    public async Task<string> GetActualPlanAsync(string serverName, string databaseName, string query, CancellationToken cancellationToken)
+    private static async Task<string?> ExtractFirstResultAsync(SqlDataReader reader, CancellationToken cancellationToken)
     {
-        var serverConfig = _options.ResolveServer(serverName);
+        if (await reader.ReadAsync(cancellationToken))
+            return reader.GetString(0);
+        return null;
+    }
 
-        var validationError = QueryValidator.Validate(query);
-        if (validationError is not null)
-            throw new InvalidOperationException(validationError);
-
-        _logger.LogInformation("Getting actual plan on server {Server} database {Database} ({QueryLength} chars)", serverName, databaseName, query.Length);
-        _logger.LogDebug("Query text: {Query}", query);
-
-        await using var connection = new SqlConnection(serverConfig.ConnectionString);
-        await connection.OpenAsync(cancellationToken);
-        await connection.ChangeDatabaseAsync(databaseName, cancellationToken);
-
-        try
+    private static async Task<string?> ExtractShowplanResultAsync(SqlDataReader reader, CancellationToken cancellationToken)
+    {
+        // Skip data result sets — the XML plan is in the result set with the showplan column
+        string? planXml = null;
+        do
         {
-            await using var statsOn = new SqlCommand("SET STATISTICS XML ON", connection)
+            if (reader.FieldCount == 1 && reader.GetName(0) == "Microsoft SQL Server 2005 XML Showplan")
             {
-                CommandTimeout = _options.CommandTimeoutSeconds
-            };
-            await statsOn.ExecuteNonQueryAsync(cancellationToken);
-
-            await using var command = new SqlCommand(query, connection)
-            {
-                CommandTimeout = _options.CommandTimeoutSeconds
-            };
-
-            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
-
-            // Skip data result sets — the XML plan is in the last result set
-            string? planXml = null;
-            do
-            {
-                if (reader.FieldCount == 1 && reader.GetName(0) == "Microsoft SQL Server 2005 XML Showplan")
+                if (await reader.ReadAsync(cancellationToken))
                 {
-                    if (await reader.ReadAsync(cancellationToken))
-                    {
-                        planXml = reader.GetString(0);
-                    }
+                    planXml = reader.GetString(0);
                 }
-            } while (await reader.NextResultAsync(cancellationToken));
-
-            var response = new Dictionary<string, object?>
-            {
-                ["server"] = serverName,
-                ["database"] = databaseName,
-                ["planType"] = "actual",
-                ["planXml"] = planXml
-            };
-
-            return JsonSerializer.Serialize(response, JsonOptions);
-        }
-        finally
-        {
-            using var cleanupCts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.CommandTimeoutSeconds));
-            await using var statsOff = new SqlCommand("SET STATISTICS XML OFF", connection)
-            {
-                CommandTimeout = _options.CommandTimeoutSeconds
-            };
-            try
-            {
-                await statsOff.ExecuteNonQueryAsync(cleanupCts.Token);
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to reset STATISTICS XML setting during cleanup");
-            }
-        }
+        } while (await reader.NextResultAsync(cancellationToken));
+        return planXml;
     }
 
     private static object FormatValue(object value) => value switch

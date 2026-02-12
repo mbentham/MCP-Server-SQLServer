@@ -1,9 +1,47 @@
+using System.Reflection;
+using Microsoft.Data.SqlClient;
+using ModelContextProtocol;
 using SqlServerMcp.Tools;
 
 namespace SqlServerMcp.Tests;
 
 public class ToolHelperTests
 {
+    // ───────────────────────────────────────────────
+    // ExecuteAsync — exception wrapping
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task ExecuteAsync_SqlException_WrapsAsMcpException()
+    {
+        var rateLimiter = new NoOpRateLimiter();
+        var sqlEx = CreateSqlException("Test SQL error");
+
+        var mcpEx = await Assert.ThrowsAsync<McpException>(
+            () => ToolHelper.ExecuteAsync(rateLimiter, () => throw sqlEx, TestContext.Current.CancellationToken));
+
+        Assert.Contains("Test SQL error", mcpEx.Message);
+    }
+
+    private static SqlException CreateSqlException(string message)
+    {
+        // SqlException has no public constructor; use reflection to build one for testing.
+        var errorCollection = (SqlErrorCollection)Activator.CreateInstance(typeof(SqlErrorCollection), nonPublic: true)!;
+
+        var errorCtors = typeof(SqlError).GetConstructors(BindingFlags.NonPublic | BindingFlags.Instance);
+        var error = (SqlError)errorCtors[0].Invoke([50000, (byte)1, (byte)17, "server", message, "", 0, 0, null]);
+
+        typeof(SqlErrorCollection)
+            .GetMethod("Add", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(errorCollection, [error]);
+
+        var createMethod = typeof(SqlException)
+            .GetMethod("CreateException", BindingFlags.NonPublic | BindingFlags.Static,
+                null, [typeof(SqlErrorCollection), typeof(string)], null)!;
+
+        return (SqlException)createMethod.Invoke(null, [errorCollection, "16.0.0"])!;
+    }
+
     // ───────────────────────────────────────────────
     // ParseExcludeSchemas
     // ───────────────────────────────────────────────

@@ -1,3 +1,4 @@
+using Microsoft.Data.SqlClient;
 using ModelContextProtocol;
 using SqlServerMcp.Services;
 
@@ -11,7 +12,7 @@ internal static class ToolHelper
     /// <summary>
     /// Executes an async tool operation with rate limiting and standardized exception handling.
     /// Acquires a rate limit lease before executing, and releases the concurrency slot on completion.
-    /// Converts ArgumentException and InvalidOperationException to McpException.
+    /// Converts ArgumentException, InvalidOperationException, and SqlException to McpException.
     /// </summary>
     public static async Task<string> ExecuteAsync(IRateLimitingService rateLimiter, Func<Task<string>> operation,
         CancellationToken cancellationToken = default)
@@ -21,7 +22,7 @@ internal static class ToolHelper
         {
             return await operation();
         }
-        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or SqlException)
         {
             throw new McpException(ex.Message);
         }
