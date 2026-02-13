@@ -61,9 +61,7 @@ public sealed class SchemaExplorationService : ISchemaExplorationService
                        WHEN 'TF' THEN 'FUNCTION'
                        WHEN 'V'  THEN 'VIEW'
                        WHEN 'TR' THEN 'TRIGGER'
-                   END AS ObjectType,
-                   o.create_date AS CreateDate,
-                   o.modify_date AS ModifyDate
+                   END AS ObjectType
             FROM sys.objects o
             INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
             WHERE o.is_ms_shipped = 0
@@ -109,8 +107,6 @@ public sealed class SchemaExplorationService : ISchemaExplorationService
                 schema = reader.GetString(0),
                 name = reader.GetString(1),
                 type = reader.GetString(2),
-                createDate = reader.GetDateTime(3).ToString("O"),
-                modifyDate = reader.GetDateTime(4).ToString("O"),
             });
         }
 
