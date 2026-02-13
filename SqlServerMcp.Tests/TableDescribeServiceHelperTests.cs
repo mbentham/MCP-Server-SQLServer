@@ -299,4 +299,60 @@ public class TableDescribeServiceHelperTests
 
         Assert.Contains("COMPUTED: [Qty]*[Price], PERSISTED", result);
     }
+
+    // ───────────────────────────────────────────────
+    // BuildMarkdown — Markdown sanitization
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public void BuildMarkdown_ColumnNameWithPipe_EscapedInOutput()
+    {
+        var columns = new List<ColumnInfo>
+        {
+            new(1, "col|name", "int", 4, 10, 0, false, null, null, false, 0, 0, false, null, false),
+        };
+
+        var result = TableDescribeService.BuildMarkdown(
+            "srv", "db", "dbo", "T",
+            columns, new List<IndexInfo>(),
+            new List<ForeignKeyInfo>(), new List<CheckConstraintInfo>());
+
+        Assert.Contains("col\\|name", result);
+        Assert.DoesNotContain("| col|name |", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_CheckConstraintWithPipe_EscapedInOutput()
+    {
+        var checks = new List<CheckConstraintInfo>
+        {
+            new("CK_Test|Pipe", "([A]>(0) OR [B]>(0))"),
+        };
+
+        var result = TableDescribeService.BuildMarkdown(
+            "srv", "db", "dbo", "T",
+            new List<ColumnInfo>(), new List<IndexInfo>(),
+            new List<ForeignKeyInfo>(), checks);
+
+        Assert.Contains("CK_Test\\|Pipe", result);
+    }
+
+    [Fact]
+    public void BuildMarkdown_DefaultDefinitionWithNewline_SanitizedInOutput()
+    {
+        var columns = new List<ColumnInfo>
+        {
+            new(1, "Notes", "nvarchar", 100, 0, 0, false,
+                "DF_Notes", "(N'line1\nline2')", false, 0, 0, false, null, false),
+        };
+
+        var result = TableDescribeService.BuildMarkdown(
+            "srv", "db", "dbo", "T",
+            columns, new List<IndexInfo>(),
+            new List<ForeignKeyInfo>(), new List<CheckConstraintInfo>());
+
+        // Newline in default definition should be replaced with space in table cells
+        Assert.Contains("(N'line1 line2')", result);
+        Assert.DoesNotContain("line1\nline2", result);
+    }
 }

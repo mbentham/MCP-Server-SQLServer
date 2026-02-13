@@ -391,9 +391,4 @@ public sealed class SchemaOverviewService : ISchemaOverviewService
         return string.Join(", ", keys);
     }
 
-    /// <summary>
-    /// Escapes characters that could break markdown table structure or inject markdown syntax.
-    /// </summary>
-    internal static string SanitizeMarkdownCell(string input)
-        => input.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
 }

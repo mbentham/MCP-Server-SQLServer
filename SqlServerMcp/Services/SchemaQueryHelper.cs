@@ -94,6 +94,12 @@ internal static class SchemaQueryHelper
         return tables;
     }
 
+    /// <summary>
+    /// Escapes characters that could break markdown table structure or inject markdown syntax.
+    /// </summary>
+    internal static string SanitizeMarkdownCell(string input)
+        => input.Replace("|", "\\|").Replace("\r", "").Replace("\n", " ");
+
     internal static (string CteSql, SqlParameter[] Parameters) BuildTableFilterCte(List<TableInfo> tables)
     {
         if (tables.Count == 0)

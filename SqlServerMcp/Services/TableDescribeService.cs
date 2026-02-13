@@ -296,9 +296,9 @@ public sealed class TableDescribeService : ITableDescribeService
 
         foreach (var col in columns)
         {
-            var type = FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale);
+            var type = SanitizeMarkdownCell(FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale));
             var nullable = col.IsNullable ? "YES" : "NO";
-            var defaultVal = col.DefaultDefinition ?? "";
+            var defaultVal = SanitizeMarkdownCell(col.DefaultDefinition ?? "");
 
             var extras = new List<string>();
             if (col.IsIdentity)
@@ -306,12 +306,12 @@ public sealed class TableDescribeService : ITableDescribeService
             if (col.IsComputed)
             {
                 var persisted = col.IsComputedPersisted ? ", PERSISTED" : "";
-                extras.Add($"COMPUTED: {col.ComputedDefinition}{persisted}");
+                extras.Add($"COMPUTED: {SanitizeMarkdownCell(col.ComputedDefinition ?? "")}{persisted}");
             }
 
             var extra = string.Join("; ", extras);
 
-            sb.AppendLine($"| {col.OrdinalPosition} | {col.ColumnName} | {type} | {nullable} | {defaultVal} | {extra} |");
+            sb.AppendLine($"| {col.OrdinalPosition} | {SanitizeMarkdownCell(col.ColumnName)} | {type} | {nullable} | {defaultVal} | {extra} |");
         }
 
         sb.AppendLine();
@@ -351,10 +351,10 @@ public sealed class TableDescribeService : ITableDescribeService
             foreach (var idx in nonPkIndexes)
             {
                 var unique = idx.IsUnique ? "YES" : "NO";
-                var included = idx.IncludedColumns.Length > 0 ? idx.IncludedColumns : "";
-                var filter = idx.FilterDefinition ?? "";
+                var included = idx.IncludedColumns.Length > 0 ? SanitizeMarkdownCell(idx.IncludedColumns) : "";
+                var filter = SanitizeMarkdownCell(idx.FilterDefinition ?? "");
 
-                sb.AppendLine($"| {idx.Name} | {idx.Type} | {unique} | {idx.KeyColumns} | {included} | {filter} |");
+                sb.AppendLine($"| {SanitizeMarkdownCell(idx.Name)} | {SanitizeMarkdownCell(idx.Type)} | {unique} | {SanitizeMarkdownCell(idx.KeyColumns)} | {included} | {filter} |");
             }
 
             sb.AppendLine();
@@ -384,8 +384,8 @@ public sealed class TableDescribeService : ITableDescribeService
 
             foreach (var fk in fkGroups)
             {
-                var references = $"[{fk.RefSchema}].[{fk.RefTable}] ({fk.RefColumns})";
-                sb.AppendLine($"| {fk.Name} | {fk.Columns} | {references} | {fk.DeleteAction} | {fk.UpdateAction} |");
+                var references = $"[{SanitizeMarkdownCell(fk.RefSchema)}].[{SanitizeMarkdownCell(fk.RefTable)}] ({SanitizeMarkdownCell(fk.RefColumns)})";
+                sb.AppendLine($"| {SanitizeMarkdownCell(fk.Name)} | {SanitizeMarkdownCell(fk.Columns)} | {references} | {SanitizeMarkdownCell(fk.DeleteAction)} | {SanitizeMarkdownCell(fk.UpdateAction)} |");
             }
 
             sb.AppendLine();
@@ -400,7 +400,7 @@ public sealed class TableDescribeService : ITableDescribeService
 
             foreach (var cc in checkConstraints)
             {
-                sb.AppendLine($"| {cc.Name} | {cc.Definition} |");
+                sb.AppendLine($"| {SanitizeMarkdownCell(cc.Name)} | {SanitizeMarkdownCell(cc.Definition)} |");
             }
 
             sb.AppendLine();
@@ -416,7 +416,7 @@ public sealed class TableDescribeService : ITableDescribeService
 
             foreach (var col in defaults)
             {
-                sb.AppendLine($"| {col.DefaultName} | {col.ColumnName} | {col.DefaultDefinition} |");
+                sb.AppendLine($"| {SanitizeMarkdownCell(col.DefaultName!)} | {SanitizeMarkdownCell(col.ColumnName)} | {SanitizeMarkdownCell(col.DefaultDefinition!)} |");
             }
 
             sb.AppendLine();

@@ -13,37 +13,37 @@ public class SchemaOverviewServiceHelperTests
     [Fact]
     public void SanitizeMarkdownCell_EscapesPipeCharacters()
     {
-        Assert.Equal("col\\|name", SchemaOverviewService.SanitizeMarkdownCell("col|name"));
+        Assert.Equal("col\\|name", SchemaQueryHelper.SanitizeMarkdownCell("col|name"));
     }
 
     [Fact]
     public void SanitizeMarkdownCell_RemovesCarriageReturn()
     {
-        Assert.Equal("line one", SchemaOverviewService.SanitizeMarkdownCell("line\r one"));
+        Assert.Equal("line one", SchemaQueryHelper.SanitizeMarkdownCell("line\r one"));
     }
 
     [Fact]
     public void SanitizeMarkdownCell_ReplacesNewlineWithSpace()
     {
-        Assert.Equal("line one line two", SchemaOverviewService.SanitizeMarkdownCell("line one\nline two"));
+        Assert.Equal("line one line two", SchemaQueryHelper.SanitizeMarkdownCell("line one\nline two"));
     }
 
     [Fact]
     public void SanitizeMarkdownCell_HandlesCrLf()
     {
-        Assert.Equal("line one line two", SchemaOverviewService.SanitizeMarkdownCell("line one\r\nline two"));
+        Assert.Equal("line one line two", SchemaQueryHelper.SanitizeMarkdownCell("line one\r\nline two"));
     }
 
     [Fact]
     public void SanitizeMarkdownCell_MultiplePipes()
     {
-        Assert.Equal("a\\|b\\|c", SchemaOverviewService.SanitizeMarkdownCell("a|b|c"));
+        Assert.Equal("a\\|b\\|c", SchemaQueryHelper.SanitizeMarkdownCell("a|b|c"));
     }
 
     [Fact]
     public void SanitizeMarkdownCell_CleanInput_Unchanged()
     {
-        Assert.Equal("NormalColumn_123", SchemaOverviewService.SanitizeMarkdownCell("NormalColumn_123"));
+        Assert.Equal("NormalColumn_123", SchemaQueryHelper.SanitizeMarkdownCell("NormalColumn_123"));
     }
 
     // ───────────────────────────────────────────────
