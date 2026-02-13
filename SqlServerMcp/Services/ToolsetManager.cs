@@ -15,6 +15,16 @@ internal sealed class ToolsetManager : IToolsetManager
 {
     internal static readonly FrozenDictionary<string, ToolsetDefinition> Toolsets = new Dictionary<string, ToolsetDefinition>
     {
+        ["schema_exploration"] = new(
+            "schema_exploration",
+            "Schema exploration tools — list programmable objects (procedures, functions, views, triggers), view object definitions, read extended properties, and explore object dependency graphs.",
+            _ => true,
+            ToolRegistry.SchemaExplorationTools),
+        ["diagrams"] = new(
+            "diagrams",
+            "ER diagram generation — PlantUML and Mermaid diagrams showing tables, columns, PKs, and FK relationships with smart cardinality detection.",
+            _ => true,
+            ToolRegistry.DiagramTools),
         ["first_responder_kit"] = new(
             "first_responder_kit",
             "Brent Ozar's First Responder Kit — sp_Blitz, sp_BlitzFirst, sp_BlitzCache, sp_BlitzIndex, sp_BlitzWho, sp_BlitzLock for SQL Server health checks, performance analysis, and diagnostics.",

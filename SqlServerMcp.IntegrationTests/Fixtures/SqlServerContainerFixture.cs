@@ -174,6 +174,55 @@ public sealed class SqlServerContainerFixture : IAsyncLifetime
                    (1, 2, 2, 29.50),
                    (2, 3, 1, 45.00)
             """);
+
+        // Programmable objects for schema exploration tests
+        await ExecuteAsync(connection, """
+            CREATE VIEW dbo.vw_ActiveProducts AS
+            SELECT p.ProductId, p.Name, p.Price, c.Name AS CategoryName
+            FROM dbo.Products p
+            INNER JOIN dbo.Categories c ON c.CategoryId = p.CategoryId
+            """);
+
+        await ExecuteAsync(connection, """
+            CREATE PROCEDURE dbo.usp_GetProductsByCategory
+                @CategoryId INT
+            AS
+            BEGIN
+                SELECT ProductId, Name, Price
+                FROM dbo.Products
+                WHERE CategoryId = @CategoryId
+                ORDER BY Name
+            END
+            """);
+
+        await ExecuteAsync(connection, """
+            CREATE FUNCTION dbo.fn_GetCategoryName(@CategoryId INT)
+            RETURNS NVARCHAR(100)
+            AS
+            BEGIN
+                DECLARE @Name NVARCHAR(100)
+                SELECT @Name = Name FROM dbo.Categories WHERE CategoryId = @CategoryId
+                RETURN @Name
+            END
+            """);
+
+        // Extended properties
+        await ExecuteAsync(connection, """
+            EXEC sp_addextendedproperty
+                @name = N'MS_Description',
+                @value = N'Product catalog table',
+                @level0type = N'SCHEMA', @level0name = N'dbo',
+                @level1type = N'TABLE', @level1name = N'Products'
+            """);
+
+        await ExecuteAsync(connection, """
+            EXEC sp_addextendedproperty
+                @name = N'MS_Description',
+                @value = N'Product display name',
+                @level0type = N'SCHEMA', @level0name = N'dbo',
+                @level1type = N'TABLE', @level1name = N'Products',
+                @level2type = N'COLUMN', @level2name = N'Name'
+            """);
     }
 
     private static async Task ExecuteAsync(SqlConnection connection, string sql)

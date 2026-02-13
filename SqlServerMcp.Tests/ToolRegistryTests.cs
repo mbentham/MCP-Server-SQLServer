@@ -12,7 +12,6 @@ public class ToolRegistryTests
         Assert.Contains(typeof(ListDatabasesTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(ReadDataTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(QueryPlanTool), ToolRegistry.CoreTools);
-        Assert.Contains(typeof(GetPlantUMLDiagramTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(GetSchemaOverviewTool), ToolRegistry.CoreTools);
         Assert.Contains(typeof(DescribeTableTool), ToolRegistry.CoreTools);
     }
@@ -20,7 +19,41 @@ public class ToolRegistryTests
     [Fact]
     public void CoreTools_HasExactCount()
     {
-        Assert.Equal(7, ToolRegistry.CoreTools.Length);
+        Assert.Equal(6, ToolRegistry.CoreTools.Length);
+    }
+
+    [Fact]
+    public void SchemaExplorationTools_ContainsExpectedTypes()
+    {
+        Assert.Contains(typeof(ListProgrammableObjectsTool), ToolRegistry.SchemaExplorationTools);
+        Assert.Contains(typeof(GetObjectDefinitionTool), ToolRegistry.SchemaExplorationTools);
+        Assert.Contains(typeof(ExtendedPropertiesTool), ToolRegistry.SchemaExplorationTools);
+        Assert.Contains(typeof(GetObjectDependenciesTool), ToolRegistry.SchemaExplorationTools);
+    }
+
+    [Fact]
+    public void SchemaExplorationTools_HasExactCount()
+    {
+        Assert.Equal(4, ToolRegistry.SchemaExplorationTools.Length);
+    }
+
+    [Fact]
+    public void DiagramTools_ContainsExpectedTypes()
+    {
+        Assert.Contains(typeof(GetPlantUMLDiagramTool), ToolRegistry.DiagramTools);
+        Assert.Contains(typeof(GetMermaidDiagramTool), ToolRegistry.DiagramTools);
+    }
+
+    [Fact]
+    public void DiagramTools_HasExactCount()
+    {
+        Assert.Equal(2, ToolRegistry.DiagramTools.Length);
+    }
+
+    [Fact]
+    public void CoreTools_DoesNotContainDiagramTool()
+    {
+        Assert.DoesNotContain(typeof(GetPlantUMLDiagramTool), ToolRegistry.CoreTools);
     }
 
     [Fact]
@@ -88,6 +121,8 @@ public class ToolRegistryTests
         var arrays = new[]
         {
             ToolRegistry.CoreTools,
+            ToolRegistry.SchemaExplorationTools,
+            ToolRegistry.DiagramTools,
             ToolRegistry.FirstResponderKitTools,
             ToolRegistry.DarlingDataTools,
             ToolRegistry.WhoIsActiveTools,
@@ -108,6 +143,8 @@ public class ToolRegistryTests
     public void AllRegisteredTools_HaveNoDuplicates()
     {
         var all = ToolRegistry.CoreTools
+            .Concat(ToolRegistry.SchemaExplorationTools)
+            .Concat(ToolRegistry.DiagramTools)
             .Concat(ToolRegistry.FirstResponderKitTools)
             .Concat(ToolRegistry.DarlingDataTools)
             .Concat(ToolRegistry.WhoIsActiveTools)
@@ -117,51 +154,57 @@ public class ToolRegistryTests
         Assert.Equal(all.Count, all.Distinct().Count());
     }
 
+    // ───────────────────────────────────────────────
+    // Static mode (enableDynamicToolsets=false)
+    // ───────────────────────────────────────────────
+
     [Fact]
-    public void GetToolTypes_AllDisabled_ReturnsCoreOnly()
+    public void GetToolTypes_AllDisabled_ReturnsCoreAndAlwaysAvailable()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: false, enableDarlingData: false, enableWhoIsActive: false).ToList();
 
-        Assert.Equal(7, types.Count);
+        // 6 core + 4 schema exploration + 2 diagram = 12
+        Assert.Equal(12, types.Count);
         Assert.Contains(typeof(ListServersTool), types);
         Assert.Contains(typeof(QueryPlanTool), types);
+        Assert.Contains(typeof(GetPlantUMLDiagramTool), types);
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.DoesNotContain(typeof(PressureDetectorTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
     }
 
     [Fact]
-    public void GetToolTypes_FirstResponderKitOnly_Returns13()
+    public void GetToolTypes_FirstResponderKitOnly_Returns18()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: true, enableDarlingData: false, enableWhoIsActive: false).ToList();
 
-        Assert.Equal(13, types.Count);
+        Assert.Equal(18, types.Count);
         Assert.Contains(typeof(BlitzTool), types);
         Assert.DoesNotContain(typeof(PressureDetectorTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
     }
 
     [Fact]
-    public void GetToolTypes_DarlingDataOnly_Returns14()
+    public void GetToolTypes_DarlingDataOnly_Returns19()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: false, enableDarlingData: true, enableWhoIsActive: false).ToList();
 
-        Assert.Equal(14, types.Count);
+        Assert.Equal(19, types.Count);
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.Contains(typeof(PressureDetectorTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
     }
 
     [Fact]
-    public void GetToolTypes_WhoIsActiveOnly_Returns8()
+    public void GetToolTypes_WhoIsActiveOnly_Returns13()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: false, enableDarlingData: false, enableWhoIsActive: true).ToList();
 
-        Assert.Equal(8, types.Count);
+        Assert.Equal(13, types.Count);
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.DoesNotContain(typeof(PressureDetectorTool), types);
         Assert.Contains(typeof(WhoIsActiveTool), types);
@@ -173,7 +216,7 @@ public class ToolRegistryTests
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: true, enableDarlingData: true, enableWhoIsActive: true).ToList();
 
-        Assert.Equal(21, types.Count);
+        Assert.Equal(26, types.Count);
     }
 
     // ───────────────────────────────────────────────
@@ -187,14 +230,14 @@ public class ToolRegistryTests
             enableFirstResponderKit: true, enableDarlingData: true, enableWhoIsActive: true,
             enableDynamicToolsets: true).ToList();
 
-        // 7 core + 1 discovery type
-        Assert.Equal(8, types.Count);
+        // 6 core + 1 discovery type
+        Assert.Equal(7, types.Count);
         Assert.Contains(typeof(ListServersTool), types);
         Assert.Contains(typeof(DiscoveryTools), types);
     }
 
     [Fact]
-    public void GetToolTypes_DynamicMode_ExcludesDbaTools()
+    public void GetToolTypes_DynamicMode_ExcludesDbaAndDiagramTools()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: true, enableDarlingData: true, enableWhoIsActive: true,
@@ -203,6 +246,7 @@ public class ToolRegistryTests
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.DoesNotContain(typeof(PressureDetectorTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
+        Assert.DoesNotContain(typeof(GetPlantUMLDiagramTool), types);
     }
 
     [Fact]
@@ -213,21 +257,21 @@ public class ToolRegistryTests
             enableFirstResponderKit: true, enableDarlingData: false, enableWhoIsActive: false,
             enableDynamicToolsets: true).ToList();
 
-        Assert.Equal(8, types.Count);
+        Assert.Equal(7, types.Count);
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.Contains(typeof(DiscoveryTools), types);
     }
 
     [Fact]
-    public void GetToolTypes_DynamicMode_AllDbaFlagsOff_ReturnsCoreOnly()
+    public void GetToolTypes_DynamicMode_AllDbaFlagsOff_StillIncludesDiscovery()
     {
+        // Discovery tools always load in dynamic mode — schema_exploration and diagrams are always available
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: false, enableDarlingData: false, enableWhoIsActive: false,
             enableDynamicToolsets: true).ToList();
 
-        // No DBA flags enabled means nothing to discover — no discovery tools
         Assert.Equal(7, types.Count);
-        Assert.DoesNotContain(typeof(DiscoveryTools), types);
+        Assert.Contains(typeof(DiscoveryTools), types);
     }
 
     [Fact]
@@ -237,7 +281,7 @@ public class ToolRegistryTests
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: true, enableDarlingData: false, enableWhoIsActive: false).ToList();
 
-        Assert.Equal(13, types.Count);
+        Assert.Equal(18, types.Count);
         Assert.Contains(typeof(BlitzTool), types);
         Assert.DoesNotContain(typeof(DiscoveryTools), types);
     }

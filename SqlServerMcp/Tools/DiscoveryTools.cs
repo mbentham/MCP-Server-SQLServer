@@ -16,10 +16,10 @@ public sealed class DiscoveryTools
 
     [McpServerTool(
         Name = "list_toolsets",
-        Title = "List DBA Toolsets",
+        Title = "List Toolsets",
         ReadOnly = true,
         Idempotent = true)]
-    [Description("List available DBA diagnostic toolsets and their current status. Use this to discover what additional tools can be enabled for database performance analysis.")]
+    [Description("List available toolsets and their current status. Use this to discover what additional tools can be enabled for schema exploration, diagrams, and database performance analysis.")]
     public string ListToolsets()
     {
         return _toolsetManager.GetToolsetSummaries();
@@ -32,7 +32,7 @@ public sealed class DiscoveryTools
         Idempotent = true)]
     [Description("Get detailed information about a specific toolset's tools and parameters before enabling it.")]
     public string GetToolsetTools(
-        [Description("Toolset name: 'first_responder_kit', 'darling_data', or 'whoisactive'")]
+        [Description("Toolset name: 'schema_exploration', 'diagrams', 'first_responder_kit', 'darling_data', or 'whoisactive'")]
         string toolsetName)
     {
         return _toolsetManager.GetToolsetDetails(toolsetName);
@@ -40,11 +40,11 @@ public sealed class DiscoveryTools
 
     [McpServerTool(
         Name = "enable_toolset",
-        Title = "Enable DBA Toolset",
+        Title = "Enable Toolset",
         ReadOnly = true)]
-    [Description("Enable a DBA diagnostic toolset, making its tools available for use. The toolset must be configured in server settings.")]
+    [Description("Enable a toolset, making its tools available for use. Some toolsets require server-side configuration.")]
     public string EnableToolset(
-        [Description("Toolset name: 'first_responder_kit', 'darling_data', or 'whoisactive'")]
+        [Description("Toolset name: 'schema_exploration', 'diagrams', 'first_responder_kit', 'darling_data', or 'whoisactive'")]
         string toolsetName)
     {
         return _toolsetManager.EnableToolset(toolsetName);

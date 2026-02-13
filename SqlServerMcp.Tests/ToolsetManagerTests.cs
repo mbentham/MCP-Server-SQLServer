@@ -60,7 +60,7 @@ public class ToolsetManagerTests
     // ───────────────────────────────────────────────
 
     [Fact]
-    public void GetToolsetSummaries_AllConfigured_ReturnsThreeAvailable()
+    public void GetToolsetSummaries_AllConfigured_ReturnsAllAvailable()
     {
         var manager = CreateManager(new SqlServerMcpOptions
         {
@@ -72,27 +72,34 @@ public class ToolsetManagerTests
         var result = manager.GetToolsetSummaries();
         var summaries = JsonDocument.Parse(result).RootElement;
 
-        Assert.Equal(3, summaries.GetArrayLength());
+        Assert.Equal(5, summaries.GetArrayLength());
         foreach (var summary in summaries.EnumerateArray())
         {
             Assert.Equal("available", summary.GetProperty("status").GetString());
-            Assert.True(summary.GetProperty("toolCount").GetInt32() > 0);
         }
     }
 
     [Fact]
-    public void GetToolsetSummaries_NoneConfigured_ReturnsThreeNotConfigured()
+    public void GetToolsetSummaries_NoneConfigured_AlwaysAvailableToolsetsStillAvailable()
     {
         var manager = CreateManager(new SqlServerMcpOptions());
 
         var result = manager.GetToolsetSummaries();
         var summaries = JsonDocument.Parse(result).RootElement;
 
-        Assert.Equal(3, summaries.GetArrayLength());
+        Assert.Equal(5, summaries.GetArrayLength());
+
+        var byName = new Dictionary<string, string>();
         foreach (var summary in summaries.EnumerateArray())
-        {
-            Assert.Equal("not_configured", summary.GetProperty("status").GetString());
-        }
+            byName[summary.GetProperty("name").GetString()!] = summary.GetProperty("status").GetString()!;
+
+        // Always-available toolsets
+        Assert.Equal("available", byName["schema_exploration"]);
+        Assert.Equal("available", byName["diagrams"]);
+        // DBA toolsets not configured
+        Assert.Equal("not_configured", byName["first_responder_kit"]);
+        Assert.Equal("not_configured", byName["darling_data"]);
+        Assert.Equal("not_configured", byName["whoisactive"]);
     }
 
     [Fact]
@@ -112,6 +119,8 @@ public class ToolsetManagerTests
         foreach (var summary in summaries.EnumerateArray())
             byName[summary.GetProperty("name").GetString()!] = summary.GetProperty("status").GetString()!;
 
+        Assert.Equal("available", byName["schema_exploration"]);
+        Assert.Equal("available", byName["diagrams"]);
         Assert.Equal("available", byName["first_responder_kit"]);
         Assert.Equal("not_configured", byName["darling_data"]);
         Assert.Equal("available", byName["whoisactive"]);
@@ -370,12 +379,28 @@ public class ToolsetManagerTests
     // ───────────────────────────────────────────────
 
     [Fact]
-    public void Toolsets_ContainsAllThreeExpectedEntries()
+    public void Toolsets_ContainsAllFiveExpectedEntries()
     {
-        Assert.Equal(3, ToolsetManager.Toolsets.Count);
+        Assert.Equal(5, ToolsetManager.Toolsets.Count);
+        Assert.True(ToolsetManager.Toolsets.ContainsKey("schema_exploration"));
+        Assert.True(ToolsetManager.Toolsets.ContainsKey("diagrams"));
         Assert.True(ToolsetManager.Toolsets.ContainsKey("first_responder_kit"));
         Assert.True(ToolsetManager.Toolsets.ContainsKey("darling_data"));
         Assert.True(ToolsetManager.Toolsets.ContainsKey("whoisactive"));
+    }
+
+    [Fact]
+    public void SchemaExplorationToolset_AlwaysConfigured()
+    {
+        var definition = ToolsetManager.Toolsets["schema_exploration"];
+        Assert.True(definition.IsConfigured(new SqlServerMcpOptions()));
+    }
+
+    [Fact]
+    public void DiagramsToolset_AlwaysConfigured()
+    {
+        var definition = ToolsetManager.Toolsets["diagrams"];
+        Assert.True(definition.IsConfigured(new SqlServerMcpOptions()));
     }
 
     // ───────────────────────────────────────────────

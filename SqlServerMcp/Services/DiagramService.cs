@@ -324,6 +324,162 @@ public sealed partial class DiagramService : IDiagramService
         return sb.ToString();
     }
 
+    public async Task<string> GenerateMermaidDiagramAsync(string serverName, string databaseName,
+        IReadOnlyList<string>? includeSchemas, IReadOnlyList<string>? excludeSchemas,
+        IReadOnlyList<string>? includeTables, IReadOnlyList<string>? excludeTables,
+        int maxTables, CancellationToken cancellationToken, bool compact = false)
+    {
+        var serverConfig = _options.ResolveServer(serverName);
+
+        _logger.LogInformation("Generating Mermaid diagram on server {Server} database {Database} schemas {Schemas} excluding {ExcludeSchemas} tables {Tables} excluding {ExcludeTables}",
+            serverName, databaseName,
+            includeSchemas is { Count: > 0 } ? string.Join(",", includeSchemas) : "all",
+            excludeSchemas is { Count: > 0 } ? string.Join(",", excludeSchemas) : "none",
+            includeTables is { Count: > 0 } ? string.Join(",", includeTables) : "all",
+            excludeTables is { Count: > 0 } ? string.Join(",", excludeTables) : "none");
+
+        await using var connection = new SqlConnection(serverConfig.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+        await connection.ChangeDatabaseAsync(databaseName, cancellationToken);
+
+        var tables = await QueryTablesAsync(connection, includeSchemas, excludeSchemas, includeTables, excludeTables, maxTables, _options.CommandTimeoutSeconds, cancellationToken);
+        if (tables.Count == 0)
+            return GenerateEmptyMermaidDiagram(serverName, databaseName, includeSchemas);
+
+        var columns = await QueryColumnsAsync(connection, tables, cancellationToken);
+        var foreignKeys = await QueryForeignKeysAsync(connection, tables, cancellationToken);
+
+        return BuildMermaid(serverName, databaseName, includeSchemas, maxTables, tables, columns, foreignKeys, compact);
+    }
+
+    internal static string BuildMermaid(string serverName, string databaseName,
+        IReadOnlyList<string>? includeSchemas, int maxTables, List<TableInfo> tables,
+        List<ColumnInfo> columns, List<ForeignKeyInfo> foreignKeys, bool compact = false)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.AppendLine($"title: \"ER Diagram: {SanitizeMermaidText(databaseName)} on {SanitizeMermaidText(serverName)}\"");
+        sb.AppendLine("---");
+        sb.AppendLine("erDiagram");
+
+        // Build a lookup of FK columns for marking
+        var fkColumns = new HashSet<(string Schema, string Table, string Column)>();
+        foreach (var fk in foreignKeys)
+            fkColumns.Add((fk.FkSchema, fk.FkTable, fk.FkColumn));
+
+        // Group columns by table
+        var columnsByTable = columns
+            .GroupBy(c => new TableInfo(c.Schema, c.TableName))
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        foreach (var table in tables)
+        {
+            var entityName = table.Schema == "dbo"
+                ? SanitizeMermaidEntity(table.Name)
+                : $"{SanitizeMermaidEntity(table.Schema)}__{SanitizeMermaidEntity(table.Name)}";
+
+            if (!columnsByTable.TryGetValue(table, out var tableCols))
+            {
+                sb.AppendLine($"    {entityName} {{");
+                sb.AppendLine("    }");
+                continue;
+            }
+
+            sb.AppendLine($"    {entityName} {{");
+
+            if (compact)
+            {
+                // PK columns (use _ placeholder type since Mermaid requires a type token)
+                var pkCols = tableCols.Where(c => c.IsPrimaryKey).ToList();
+                foreach (var col in pkCols)
+                {
+                    var marker = "PK";
+                    if (fkColumns.Contains((col.Schema, col.TableName, col.ColumnName)))
+                        marker = "PK,FK";
+                    sb.AppendLine($"        _ {SanitizeMermaidEntity(col.ColumnName)} {marker}");
+                }
+
+                // FK columns only (non-PK)
+                var fkNonPkCols = tableCols.Where(c => !c.IsPrimaryKey &&
+                    fkColumns.Contains((c.Schema, c.TableName, c.ColumnName))).ToList();
+                foreach (var col in fkNonPkCols)
+                {
+                    sb.AppendLine($"        _ {SanitizeMermaidEntity(col.ColumnName)} FK");
+                }
+            }
+            else
+            {
+                foreach (var col in tableCols)
+                {
+                    var dataType = FormatDataType(col.DataType, col.MaxLength, col.Precision, col.Scale);
+                    // Mermaid doesn't support parentheses in types — replace with underscores
+                    dataType = dataType.Replace("(", "_").Replace(")", "").Replace(",", "_");
+
+                    string marker;
+                    if (col.IsPrimaryKey && fkColumns.Contains((col.Schema, col.TableName, col.ColumnName)))
+                        marker = " PK,FK";
+                    else if (col.IsPrimaryKey)
+                        marker = " PK";
+                    else if (fkColumns.Contains((col.Schema, col.TableName, col.ColumnName)))
+                        marker = " FK";
+                    else
+                        marker = "";
+
+                    sb.AppendLine($"        {SanitizeMermaidEntity(dataType)} {SanitizeMermaidEntity(col.ColumnName)}{marker}");
+                }
+            }
+
+            sb.AppendLine("    }");
+        }
+
+        // Relationships, deduplicated by FK name
+        var emittedFks = new HashSet<string>();
+        foreach (var fk in foreignKeys)
+        {
+            if (!emittedFks.Add(fk.FkName))
+                continue;
+
+            var refEntity = fk.RefSchema == "dbo"
+                ? SanitizeMermaidEntity(fk.RefTable)
+                : $"{SanitizeMermaidEntity(fk.RefSchema)}__{SanitizeMermaidEntity(fk.RefTable)}";
+            var fkEntity = fk.FkSchema == "dbo"
+                ? SanitizeMermaidEntity(fk.FkTable)
+                : $"{SanitizeMermaidEntity(fk.FkSchema)}__{SanitizeMermaidEntity(fk.FkTable)}";
+
+            // Determine cardinality notation
+            string refSide = "||"; // referenced (parent) side is always mandatory one
+            string fkSide;
+
+            if (fk.IsUnique)
+                fkSide = fk.IsNullable ? "o|" : "||"; // one-to-one
+            else
+                fkSide = fk.IsNullable ? "o{" : "|{"; // one-to-many
+
+            sb.AppendLine($"    {refEntity} {refSide}--{fkSide} {fkEntity} : \"{SanitizeMermaidText(fk.FkName)}\"");
+        }
+
+        if (tables.Count >= maxTables)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"    %% WARNING: Output truncated at {maxTables} tables. Increase maxTables to see more.");
+        }
+
+        return sb.ToString();
+    }
+
+    internal static string GenerateEmptyMermaidDiagram(string serverName, string databaseName, IReadOnlyList<string>? includeSchemas)
+    {
+        var schemaDisplay = includeSchemas is { Count: > 0 } ? string.Join(",", includeSchemas) : "all";
+        var sb = new StringBuilder();
+        sb.AppendLine("---");
+        sb.AppendLine($"title: \"ER Diagram: {SanitizeMermaidText(databaseName)} on {SanitizeMermaidText(serverName)}\"");
+        sb.AppendLine("---");
+        sb.AppendLine("erDiagram");
+        sb.AppendLine($"    %% Schema: {SanitizeMermaidText(schemaDisplay)} | Tables: 0");
+        sb.AppendLine("    %% No tables found");
+        return sb.ToString();
+    }
+
     internal static string GenerateEmptyDiagram(string serverName, string databaseName, IReadOnlyList<string>? includeSchemas)
     {
         var schemaDisplay = includeSchemas is { Count: > 0 } ? string.Join(",", includeSchemas) : "all";
@@ -347,9 +503,27 @@ public sealed partial class DiagramService : IDiagramService
     internal static string SanitizePlantUmlText(string input)
         => PlantUmlUnsafeChars().Replace(input, "");
 
+    /// <summary>
+    /// Strips characters that could break Mermaid syntax.
+    /// </summary>
+    internal static string SanitizeMermaidText(string input)
+        => MermaidUnsafeChars().Replace(input, "");
+
+    /// <summary>
+    /// Sanitizes text for use as a Mermaid entity name (no spaces, special chars).
+    /// </summary>
+    internal static string SanitizeMermaidEntity(string input)
+        => MermaidEntityUnsafeChars().Replace(input, "_");
+
     [GeneratedRegex(@"[.\s\-]")]
     private static partial Regex AliasRegex();
 
     [GeneratedRegex(@"[\r\n@""{}!]")]
     private static partial Regex PlantUmlUnsafeChars();
+
+    [GeneratedRegex(@"[\r\n""{}%;]")]
+    private static partial Regex MermaidUnsafeChars();
+
+    [GeneratedRegex(@"[^a-zA-Z0-9_]")]
+    private static partial Regex MermaidEntityUnsafeChars();
 }

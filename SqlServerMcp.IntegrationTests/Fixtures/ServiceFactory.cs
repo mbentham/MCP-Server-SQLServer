@@ -43,4 +43,10 @@ internal static class ServiceFactory
         var options = Options.Create(BuildOptions(connectionString));
         return new TableDescribeService(options, NullLogger<TableDescribeService>.Instance);
     }
+
+    internal static SchemaExplorationService CreateSchemaExplorationService(string connectionString)
+    {
+        var options = Options.Create(BuildOptions(connectionString));
+        return new SchemaExplorationService(options, NullLogger<SchemaExplorationService>.Instance);
+    }
 }

@@ -30,6 +30,7 @@ builder.Services.AddSingleton<ISqlServerService, SqlServerService>();
 builder.Services.AddSingleton<IDiagramService, DiagramService>();
 builder.Services.AddSingleton<ISchemaOverviewService, SchemaOverviewService>();
 builder.Services.AddSingleton<ITableDescribeService, TableDescribeService>();
+builder.Services.AddSingleton<ISchemaExplorationService, SchemaExplorationService>();
 // Read tool flags directly from configuration (needed before DI container is built)
 static bool ReadBoolFlag(IConfiguration config, string key)
     => bool.TryParse(config[$"SqlServerMcp:{key}"], out var value) && value;
@@ -66,7 +67,7 @@ builder.Services
         enableFirstResponderKit, enableDarlingData, enableWhoIsActive, enableDynamicToolsets));
 
 // Advertise dynamic tool list support when in dynamic mode
-if (enableDynamicToolsets && (enableFirstResponderKit || enableDarlingData || enableWhoIsActive))
+if (enableDynamicToolsets)
 {
     builder.Services.PostConfigure<McpServerOptions>(options =>
     {

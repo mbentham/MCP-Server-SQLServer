@@ -208,4 +208,99 @@ public sealed class DiagramServiceIntegrationTests
         // sales tables excluded by schema filter
         Assert.DoesNotContain("entity \"sales.Orders\"", result);
     }
+
+    // ───────────────────────────────────────────────
+    // Mermaid ER Diagram
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public async Task GenerateMermaidDiagram_AllSchemas_ContainsAllTablesAndRelationships()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateMermaidDiagramAsync(Server, Db,
+            includeSchemas: null, excludeSchemas: null,
+            includeTables: null, excludeTables: null,
+            maxTables: 100, CancellationToken.None);
+
+        // Mermaid envelope
+        Assert.Contains("erDiagram", result);
+
+        // All four tables present
+        Assert.Contains("Categories", result);
+        Assert.Contains("Products", result);
+        Assert.Contains("Orders", result);
+        Assert.Contains("OrderItems", result);
+
+        // FK relationships
+        Assert.Contains("FK_Products_Categories", result);
+        Assert.Contains("FK_OrderItems_Orders", result);
+        Assert.Contains("FK_OrderItems_Products", result);
+
+        // PK and FK markers on columns
+        Assert.Contains("PK", result);
+        Assert.Contains("FK", result);
+    }
+
+    [Fact]
+    public async Task GenerateMermaidDiagram_IncludeSchemaFilter_RestrictsToOneSchema()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateMermaidDiagramAsync(Server, Db,
+            includeSchemas: ["dbo"], excludeSchemas: null,
+            includeTables: null, excludeTables: null,
+            maxTables: 100, CancellationToken.None);
+
+        Assert.Contains("Categories", result);
+        Assert.Contains("Products", result);
+
+        // sales tables should not appear
+        Assert.DoesNotContain("sales__Orders", result);
+        Assert.DoesNotContain("sales__OrderItems", result);
+    }
+
+    [Fact]
+    public async Task GenerateMermaidDiagram_EmptyDatabase_ReturnsNoTablesFound()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateMermaidDiagramAsync(Server, Db,
+            includeSchemas: ["nonexistent_schema"], excludeSchemas: null,
+            includeTables: null, excludeTables: null,
+            maxTables: 100, CancellationToken.None);
+
+        Assert.Contains("No tables found", result);
+    }
+
+    [Fact]
+    public async Task GenerateMermaidDiagram_Compact_ShowsOnlyKeyColumns()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateMermaidDiagramAsync(Server, Db,
+            includeSchemas: null, excludeSchemas: null,
+            includeTables: null, excludeTables: null,
+            maxTables: 100, CancellationToken.None, compact: true);
+
+        Assert.Contains("erDiagram", result);
+        Assert.Contains("PK", result);
+        Assert.Contains("FK", result);
+
+        // FK relationships preserved
+        Assert.Contains("FK_Products_Categories", result);
+    }
+
+    [Fact]
+    public async Task GenerateMermaidDiagram_MaxTablesTruncation_EmitsTruncationWarning()
+    {
+        var service = ServiceFactory.CreateDiagramService(_fixture.ConnectionString);
+
+        var result = await service.GenerateMermaidDiagramAsync(Server, Db,
+            includeSchemas: null, excludeSchemas: null,
+            includeTables: null, excludeTables: null,
+            maxTables: 2, CancellationToken.None);
+
+        Assert.Contains("WARNING", result);
+    }
 }

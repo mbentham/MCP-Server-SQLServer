@@ -10,9 +10,22 @@ internal static class ToolRegistry
         typeof(ListDatabasesTool),
         typeof(ReadDataTool),
         typeof(QueryPlanTool),
-        typeof(GetPlantUMLDiagramTool),
         typeof(GetSchemaOverviewTool),
         typeof(DescribeTableTool),
+    ];
+
+    internal static readonly Type[] SchemaExplorationTools =
+    [
+        typeof(ListProgrammableObjectsTool),
+        typeof(GetObjectDefinitionTool),
+        typeof(ExtendedPropertiesTool),
+        typeof(GetObjectDependenciesTool),
+    ];
+
+    internal static readonly Type[] DiagramTools =
+    [
+        typeof(GetPlantUMLDiagramTool),
+        typeof(GetMermaidDiagramTool),
     ];
 
     internal static readonly Type[] FirstResponderKitTools =
@@ -51,12 +64,11 @@ internal static class ToolRegistry
         bool enableDynamicToolsets = false)
     {
         if (enableDynamicToolsets)
-        {
-            bool anyDbaEnabled = enableFirstResponderKit || enableDarlingData || enableWhoIsActive;
-            return anyDbaEnabled ? CoreTools.Concat(DiscoveryToolTypes) : CoreTools;
-        }
+            return CoreTools.Concat(DiscoveryToolTypes);
 
-        IEnumerable<Type> tools = CoreTools;
+        IEnumerable<Type> tools = CoreTools
+            .Concat(SchemaExplorationTools)
+            .Concat(DiagramTools);
 
         if (enableFirstResponderKit)
             tools = tools.Concat(FirstResponderKitTools);
