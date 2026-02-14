@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.3.0</Version>
+
+    <!-- NuGet global tool -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>sqlaugur</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+
+    <!-- Package metadata -->
+    <PackageId>SqlAugur</PackageId>
+    <Authors>mbentham</Authors>
+    <Description>MCP server providing AI assistants with safe, read-only access to SQL Server databases. AST-based query validation ensures only SELECT queries execute.</Description>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
+    <PackageProjectUrl>https://github.com/mbentham/SqlAugur</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/mbentham/SqlAugur.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>mcp;model-context-protocol;sql-server;database;ai;llm;sqlaugur</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SqlAugur.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" Version="0.8.0-preview.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4" />
+    <PackageReference Include="Microsoft.SqlServer.TransactSql.ScriptDom" Version="170.157.0" />
+    <PackageReference Include="System.Threading.RateLimiting" Version="10.0.3" />
+  </ItemGroup>
+
+</Project>

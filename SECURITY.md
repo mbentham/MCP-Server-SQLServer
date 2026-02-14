@@ -1,6 +1,6 @@
 # Security Guide
 
-Detailed security guidance for SQL Server MCP. For an overview of the security model (query validation, parameter blocking, rate limiting), see the [Security section in the README](README.md#security).
+Operational security guidance for SqlAugur — credential management, login and user hardening, and connection security. For an overview of query validation, parameter blocking, and rate limiting, see the [Security section in the README](README.md#security).
 
 ## Connection Security and Credential Management
 
@@ -11,7 +11,7 @@ The most secure authentication methods avoid storing credentials in configuratio
 **Windows Authentication (on-premises or domain-joined environments):**
 ```json
 {
-  "SqlServerMcp": {
+  "SqlAugur": {
     "Servers": {
       "production": {
         "ConnectionString": "Server=myserver;Database=master;Integrated Security=True;TrustServerCertificate=False;Encrypt=True;"
@@ -24,7 +24,7 @@ The most secure authentication methods avoid storing credentials in configuratio
 **Azure Managed Identity (Azure SQL Database):**
 ```json
 {
-  "SqlServerMcp": {
+  "SqlAugur": {
     "Servers": {
       "azure-prod": {
         "ConnectionString": "Server=myserver.database.windows.net;Database=master;Authentication=Active Directory Managed Identity;TrustServerCertificate=False;Encrypt=True;"
@@ -45,7 +45,7 @@ When Windows Authentication or Managed Identity are not available, follow these 
    Start with a connection string template in `appsettings.json` (no password):
    ```json
    {
-     "SqlServerMcp": {
+     "SqlAugur": {
        "Servers": {
          "production": {
            "ConnectionString": "Server=myserver;Database=master;User Id=sqlreader;Encrypt=True;TrustServerCertificate=False;"
@@ -57,8 +57,8 @@ When Windows Authentication or Managed Identity are not available, follow these 
 
    Then override the full connection string (including the password) via an environment variable:
    ```bash
-   export SqlServerMcp__Servers__production__ConnectionString="Server=myserver;Database=master;User Id=sqlreader;Password=your-secure-password;Encrypt=True;TrustServerCertificate=False;"
-   dotnet run --project SqlServerMcp
+   export SqlAugur__Servers__production__ConnectionString="Server=myserver;Database=master;User Id=sqlreader;Password=your-secure-password;Encrypt=True;TrustServerCertificate=False;"
+   dotnet run --project SqlAugur
    ```
 
    > **Note:** Some MCP clients (e.g., Claude Desktop) support `${ENV_VAR}` substitution syntax in their own configuration files, but this is **not a .NET feature** — .NET's `IConfiguration` system does not resolve `${...}` placeholders in values. Do not rely on this syntax in `appsettings.json`. Use the `__` environment variable override pattern shown above, or inject credentials through your MCP client's own environment variable support.
@@ -69,14 +69,7 @@ When Windows Authentication or Managed Identity are not available, follow these 
    - **HashiCorp Vault** — for on-premises, use Vault for centralized secrets management
    - **Windows Credential Manager** — for local development on Windows
 
-4. **Rotate credentials regularly** — if using SQL authentication, implement a credential rotation policy (e.g., every 90 days)
-
-5. **Use strong passwords** — if SQL authentication is required, follow [NIST SP 800-63B Rev 4](https://pages.nist.gov/800-63-4/sp800-63b.html) guidance:
-   - **Minimum 15 characters** — longer passwords are stronger than complex ones; allow up to at least 64 characters
-   - **No composition rules** — do not require uppercase, numbers, or special characters (NIST finds these reduce effective entropy by encouraging predictable substitutions)
-   - **Screen against blocklists** — reject passwords found in breach databases (e.g., Have I Been Pwned), common password lists, dictionary words, and context-specific terms (server names, usernames)
-   - **No periodic expiration** — only require password changes on evidence of compromise; forced rotation leads to weaker passwords
-   - **Use a password manager** — generate long, random passwords and store them securely
+4. **Use strong passwords** — use a password manager to generate a long (30+ characters), random password. A random password of this length naturally satisfies Windows complexity requirements. Keep [`CHECK_POLICY`](https://learn.microsoft.com/en-us/sql/relational-databases/security/password-policy) and `CHECK_EXPIRATION` enabled on the SQL login (the SQL Server defaults) to enforce complexity and rotation at the server level.
 
 **Connection String Encryption:**
 
@@ -85,12 +78,12 @@ Always use encrypted connections to protect credentials in transit:
 - Use `TrustServerCertificate=False` for production (only use `True` for development with self-signed certificates)
 - Ensure SQL Server has a valid SSL/TLS certificate from a trusted CA
 
-## SQL Server Account Recommendations
+## SQL Server Login and User Recommendations
 
-The SQL account used by this MCP server should follow least-privilege principles:
+The SQL Server login and database user used by this MCP server should follow least-privilege principles:
 
-- **Grant read-only access** — the account only needs `SELECT` permission on the databases and schemas it should access. Do not grant `db_datawriter`, `db_ddladmin`, or server-level roles like `sysadmin`.
-- **Do not grant EXECUTE on unsafe CLR assemblies** — `SELECT` statements can call user-defined functions, including CLR functions. If a CLR assembly is registered with `EXTERNAL_ACCESS` or `UNSAFE` permission sets, it can perform file I/O, network calls, and other side effects when invoked from a SELECT. The service account should not have EXECUTE permission on any such assemblies.
-- **Use a dedicated service account** — do not reuse accounts shared with other applications. A dedicated account makes it easy to audit activity and revoke access independently.
-- **Restrict database access** — if the account should only query specific databases, grant access only to those databases. Three-part name queries (`OtherDb.dbo.Table`) are allowed by design, so database-level permissions are the control point.
-- **Consider Resource Governor** — for production SQL Server instances, place the service account in a Resource Governor workload group with CPU and memory limits to prevent expensive queries from impacting other workloads.
+- **Grant read-only access** — the login only needs `SELECT` permission on the databases and schemas it should access. Do not grant `db_datawriter`, `db_ddladmin`, or server-level roles like `sysadmin`.
+- **Do not grant EXECUTE on unsafe CLR assemblies** — `SELECT` statements can call user-defined functions, including CLR functions. If a CLR assembly is registered with `EXTERNAL_ACCESS` or `UNSAFE` permission sets, it can perform file I/O, network calls, and other side effects when invoked from a SELECT. The login should not have EXECUTE permission on any such assemblies.
+- **Use a dedicated login** — do not reuse logins shared with other applications. A dedicated login makes it easy to audit activity and revoke access independently.
+- **Restrict database access** — if the login should only query specific databases, create database users only in those databases. Three-part name queries (`OtherDb.dbo.Table`) are allowed by design, so database-level permissions are the control point.
+- **Consider Resource Governor** — for production SQL Server instances, place the login in a Resource Governor workload group with CPU and memory limits to prevent expensive queries from impacting other workloads.

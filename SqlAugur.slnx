@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="SqlAugur.IntegrationTests/SqlAugur.IntegrationTests.csproj" />
+  <Project Path="SqlAugur.Tests/SqlAugur.Tests.csproj" />
+  <Project Path="SqlAugur/SqlAugur.csproj" />
+</Solution>

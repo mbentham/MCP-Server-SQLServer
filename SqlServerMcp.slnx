@@ -1,5 +1,0 @@
-<Solution>
-  <Project Path="SqlServerMcp.IntegrationTests/SqlServerMcp.IntegrationTests.csproj" />
-  <Project Path="SqlServerMcp.Tests/SqlServerMcp.Tests.csproj" />
-  <Project Path="SqlServerMcp/SqlServerMcp.csproj" />
-</Solution>
