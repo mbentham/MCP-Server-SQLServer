@@ -358,6 +358,8 @@ When `EnableDynamicToolsets` is true, only core tools load at startup. Three met
 
 In static mode (`EnableDynamicToolsets: false`), all enabled toolsets load at startup and the discovery tools are not registered. Schema Exploration and Diagrams toolsets are always loaded regardless of mode.
 
+> **Known limitation:** Progressive discovery relies on the MCP `notifications/tools/list_changed` notification to inform clients that new tools have been registered. Claude Code does not currently handle this notification ([anthropics/claude-code#4118](https://github.com/anthropics/claude-code/issues/4118)), so dynamically enabled toolsets will not appear. Use static mode (`EnableDynamicToolsets: false`) when using Claude Code.
+
 ## Security
 
 ### Query Validation

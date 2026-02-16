@@ -105,17 +105,6 @@ builder.Services
     .WithTools(ToolRegistry.GetToolTypes(
         enableFirstResponderKit, enableDarlingData, enableWhoIsActive, enableDynamicToolsets));
 
-// Advertise dynamic tool list support when in dynamic mode
-if (enableDynamicToolsets)
-{
-    builder.Services.PostConfigure<McpServerOptions>(options =>
-    {
-        options.Capabilities ??= new();
-        options.Capabilities.Tools ??= new();
-        options.Capabilities.Tools.ListChanged = true;
-    });
-}
-
 var host = builder.Build();
 
 // Log startup warnings for security-relevant configuration
