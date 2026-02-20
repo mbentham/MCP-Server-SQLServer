@@ -6,6 +6,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![.NET 10.0](https://img.shields.io/badge/.NET-10.0-purple.svg)
 
+<a href="https://glama.ai/mcp/servers/@mbentham/sql-augur">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@mbentham/sql-augur/badge" />
+</a>
+
 **An MCP server that gives AI assistants safe, read-only access to SQL Server databases. Every query is parsed into a full AST using Microsoft's official T-SQL parser — not regex — so comment injection, string literal tricks, and encoding bypasses are blocked at the syntax level.**
 
 ```
