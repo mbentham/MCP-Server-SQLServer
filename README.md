@@ -28,89 +28,13 @@
 
 ## Quick Start
 
-Prerequisite: [.NET 10.0 runtime](https://dotnet.microsoft.com/download)
+Use this order for all install methods:
+1. Install SqlAugur
+2. Save `appsettings.json` in the correct location
+3. Add SqlAugur to your MCP client config
+4. Verify by asking your assistant to call `list_servers`
 
-**1. Install**
-
-```bash
-dotnet tool install -g SqlAugur
-```
-
-**2. Configure** — create `~/.config/sqlaugur/appsettings.json` (Linux/macOS) or `%APPDATA%\sqlaugur\appsettings.json` (Windows), setting the connection string for your environment:
-
-```json
-{
-  "SqlAugur": {
-    "Servers": {
-      "production": {
-        "ConnectionString": "Server=myserver;Database=master;Integrated Security=True;TrustServerCertificate=False;Encrypt=True;"
-      }
-    }
-  }
-}
-```
-
-**3. Connect** — add to your MCP client:
-
-<details open>
-<summary><strong>Claude Desktop</strong></summary>
-
-Add to your [Claude Desktop config](https://modelcontextprotocol.io/quickstart/user) (`claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "sqlaugur": {
-      "command": "sqlaugur"
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><strong>Claude Code</strong></summary>
-
-```bash
-claude mcp add --transport stdio sqlaugur -- sqlaugur
-```
-
-Or add to `.mcp.json` in your project root:
-
-```json
-{
-  "mcpServers": {
-    "sqlaugur": {
-      "type": "stdio",
-      "command": "sqlaugur"
-    }
-  }
-}
-```
-
-</details>
-
-<details>
-<summary><strong>VS Code / Copilot</strong></summary>
-
-Add to `.vscode/mcp.json` in your workspace:
-
-```json
-{
-  "servers": {
-    "sqlaugur": {
-      "command": "sqlaugur"
-    }
-  }
-}
-```
-
-</details>
-
-**4. Verify** — ask your AI assistant to `list_servers` and you should see your configured connection.
-
-For Docker, Podman, and other install methods, see [Installation](#installation).
+Start with [Installation](#installation) for exact commands and file paths.
 
 ## Why This Approach
 
@@ -144,17 +68,17 @@ For Docker, Podman, and other install methods, see [Installation](#installation)
 
 ## Installation
 
-All methods produce the same MCP server.
+All methods produce the same MCP server. Follow this order: install, save config, wire client, verify.
 
 ### NuGet Global Tool (recommended)
 
-Prerequisite: [.NET 10.0 runtime](https://dotnet.microsoft.com/download)
+**1. Install** (prerequisite: [.NET 10.0 runtime](https://dotnet.microsoft.com/download))
 
 ```bash
 dotnet tool install -g SqlAugur
 ```
 
-Create your configuration file:
+**2. Save config file**
 
 ```bash
 # Linux/macOS
@@ -166,12 +90,26 @@ mkdir "$env:APPDATA\sqlaugur" -Force
 # Edit %APPDATA%\sqlaugur\appsettings.json with your server connections
 ```
 
-MCP client configuration:
+Example `appsettings.json` to save at that location:
+
+```json
+{
+  "SqlAugur": {
+    "Servers": {
+      "production": {
+        "ConnectionString": "Server=myserver;Database=master;Integrated Security=True;TrustServerCertificate=False;Encrypt=True;"
+      }
+    }
+  }
+}
+```
+
+**3. Add to MCP client**
 
 ```json
 {
   "mcpServers": {
-    "sqlserver": {
+    "sqlaugur": {
       "command": "sqlaugur"
     }
   }
@@ -181,6 +119,8 @@ MCP client configuration:
 To update: `dotnet tool update -g SqlAugur`
 
 ### Docker / Podman
+
+**1. Run SqlAugur container**
 
 ```bash
 # Volume-mount a config file
@@ -196,12 +136,14 @@ docker run -i --rm \
 
 > **Note:** To reach a SQL Server on the host machine, use `host.docker.internal` (Docker Desktop) or `--network=host` (Linux). Replace `docker` with `podman` — all commands are identical. The `:Z` flag on volume mounts is required for SELinux-enabled systems (Fedora, RHEL); Docker Desktop users on macOS/Windows can omit it.
 
-MCP client configuration:
+If you mount a config file, save it as `/path/to/appsettings.json` and mount it to `/app/appsettings.json`.
+
+**2. Add to MCP client**
 
 ```json
 {
   "mcpServers": {
-    "sqlserver": {
+    "sqlaugur": {
       "command": "docker",
       "args": ["run", "-i", "--rm",
         "-v", "/path/to/appsettings.json:/app/appsettings.json:ro,Z",
@@ -228,7 +170,7 @@ MCP client configuration:
 ```json
 {
   "mcpServers": {
-    "sqlserver": {
+    "sqlaugur": {
       "command": "docker",
       "args": ["compose", "run", "-i", "--rm", "sqlaugur"]
     }
@@ -241,28 +183,58 @@ MCP client configuration:
 
 ### Build from Source
 
-Prerequisite: [.NET 10.0 SDK](https://dotnet.microsoft.com/download)
+**1. Build** (prerequisite: [.NET 10.0 SDK](https://dotnet.microsoft.com/download))
 
 ```bash
 git clone git@github.com:mbentham/SqlAugur.git
 cd SqlAugur
 dotnet publish SqlAugur -c Release -o SqlAugur/publish
-cp SqlAugur/appsettings.example.json SqlAugur/publish/appsettings.json
-# Edit SqlAugur/publish/appsettings.json with your server connections
 ```
 
-MCP client configuration:
+**2. Save config file**
+
+```bash
+# Linux/macOS
+cp SqlAugur/appsettings.example.json SqlAugur/publish/appsettings.json
+# Edit SqlAugur/publish/appsettings.json with your server connections
+
+# Windows (PowerShell)
+Copy-Item SqlAugur\appsettings.example.json SqlAugur\publish\appsettings.json
+# Edit SqlAugur\publish\appsettings.json with your server connections
+```
+
+**3. Add to MCP client**
 
 ```json
 {
   "mcpServers": {
-    "sqlserver": {
+    "sqlaugur": {
       "command": "dotnet",
       "args": ["/absolute/path/to/SqlAugur/publish/SqlAugur.dll"]
     }
   }
 }
 ```
+
+### Verify the MCP connection (LLM-first)
+
+After restarting your MCP client, ask the assistant:
+
+- `Call list_servers`
+- `Call list_databases for server "production"`
+
+Expected result:
+- `list_servers` returns your configured server name (for example `production`)
+- `list_databases` returns a JSON array of databases, not a connection or authentication error
+
+If verification fails:
+1. Confirm MCP config runs the expected command (`sqlaugur`, `docker run ...`, or `dotnet /path/to/SqlAugur.dll`)
+2. Confirm `appsettings.json` is saved where your install method expects it:
+   - Local tool: `~/.config/sqlaugur/appsettings.json` (Linux/macOS) or `%APPDATA%\sqlaugur\appsettings.json` (Windows)
+   - Container: mounted to `/app/appsettings.json`
+   - Source build: next to the published DLL (`SqlAugur/publish/appsettings.json`)
+3. Confirm the tool call uses a configured server key (for example `production`)
+4. Confirm SQL connectivity and authentication in the connection string
 
 ## Configuration
 
