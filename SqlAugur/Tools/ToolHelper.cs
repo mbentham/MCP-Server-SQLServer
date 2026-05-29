@@ -12,7 +12,9 @@ internal static class ToolHelper
     /// <summary>
     /// Executes an async tool operation with rate limiting and standardized exception handling.
     /// Acquires a rate limit lease before executing, and releases the concurrency slot on completion.
-    /// Converts ArgumentException, InvalidOperationException, and SqlException to McpException.
+    /// Re-throws client cancellation. Converts ArgumentException, InvalidOperationException, and
+    /// SqlException to McpException carrying their message; any other exception is converted to an
+    /// McpException carrying its type name and message so failures are never opaque.
     /// </summary>
     public static async Task<string> ExecuteAsync(IRateLimitingService rateLimiter, Func<Task<string>> operation,
         CancellationToken cancellationToken = default)
@@ -22,9 +24,23 @@ internal static class ToolHelper
         {
             return await operation();
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The client cancelled the request — let the MCP framework handle it as a cancellation
+            // rather than masking it as a tool error. Must come before the broad catch-all below.
+            throw;
+        }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or SqlException)
         {
             throw new McpException(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            // Any other exception (e.g. SocketException from ephemeral-port exhaustion, IOException,
+            // TimeoutException) would otherwise escape and the MCP framework would return an opaque
+            // "An error occurred invoking '<tool>'." with no detail, masking the real cause. Surface
+            // the exception type and message so the failure is diagnosable from the client and logs.
+            throw new McpException($"{ex.GetType().Name}: {ex.Message}");
         }
     }
 

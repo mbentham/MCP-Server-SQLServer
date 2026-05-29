@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
 using ModelContextProtocol;
@@ -21,6 +22,38 @@ public class ToolHelperTests
             () => ToolHelper.ExecuteAsync(rateLimiter, () => throw sqlEx, TestContext.Current.CancellationToken));
 
         Assert.Contains("Test SQL error", mcpEx.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_SocketException_WrapsAsMcpExceptionWithDetail()
+    {
+        // A SocketException is what surfaces when the machine runs out of ephemeral TCP ports
+        // (sustained query volume churning sockets into TIME_WAIT). It is not one of the
+        // exception types ToolHelper historically translated, so it used to escape as an opaque
+        // "An error occurred invoking '<tool>'." with no detail. It must now surface as an
+        // McpException carrying the exception type and message so the failure is diagnosable.
+        var rateLimiter = new NoOpRateLimiter();
+        var socketEx = new SocketException(10055); // WSAENOBUFS — no buffer space available
+
+        var mcpEx = await Assert.ThrowsAsync<McpException>(
+            () => ToolHelper.ExecuteAsync(rateLimiter, () => throw socketEx, TestContext.Current.CancellationToken));
+
+        Assert.Contains(nameof(SocketException), mcpEx.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationCanceled_WhenTokenCancelled_Propagates()
+    {
+        // When the client cancels the request, the operation throws OperationCanceledException.
+        // This must propagate so the MCP framework handles it as a cancellation rather than
+        // masking it as a generic tool error. The broad catch-all must not swallow it.
+        var rateLimiter = new NoOpRateLimiter();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            () => ToolHelper.ExecuteAsync(rateLimiter,
+                () => throw new OperationCanceledException(cts.Token), cts.Token));
     }
 
     private static SqlException CreateSqlException(string message)
