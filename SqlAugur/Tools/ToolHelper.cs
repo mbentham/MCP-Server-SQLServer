@@ -19,9 +19,11 @@ internal static class ToolHelper
     public static async Task<string> ExecuteAsync(IRateLimitingService rateLimiter, Func<Task<string>> operation,
         CancellationToken cancellationToken = default)
     {
-        using var lease = await rateLimiter.AcquireAsync(cancellationToken);
         try
         {
+            // Acquired inside the try so rate-limit rejections (InvalidOperationException) are
+            // translated to McpException with their message rather than escaping as an opaque error.
+            using var lease = await rateLimiter.AcquireAsync(cancellationToken);
             return await operation();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

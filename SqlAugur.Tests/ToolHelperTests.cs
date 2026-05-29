@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Reflection;
 using Microsoft.Data.SqlClient;
 using ModelContextProtocol;
+using SqlAugur.Services;
 using SqlAugur.Tools;
 
 namespace SqlAugur.Tests;
@@ -39,6 +40,28 @@ public class ToolHelperTests
             () => ToolHelper.ExecuteAsync(rateLimiter, () => throw socketEx, TestContext.Current.CancellationToken));
 
         Assert.Contains(nameof(SocketException), mcpEx.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_RateLimiterThrows_WrapsAsMcpExceptionWithMessage()
+    {
+        // Rate-limit rejections ("Rate limit exceeded...", "Too many concurrent queries...") are
+        // thrown by AcquireAsync. They carry a useful message but used to escape uncaught because
+        // the lease was acquired outside the try, so the framework returned an opaque generic error.
+        // The message must now be surfaced via McpException.
+        var rateLimiter = new ThrowingRateLimiter(
+            new InvalidOperationException("Rate limit exceeded. Too many queries per minute. Please wait and try again."));
+
+        var mcpEx = await Assert.ThrowsAsync<McpException>(
+            () => ToolHelper.ExecuteAsync(rateLimiter, () => Task.FromResult("unreached"), TestContext.Current.CancellationToken));
+
+        Assert.Contains("Rate limit exceeded", mcpEx.Message);
+    }
+
+    private sealed class ThrowingRateLimiter(Exception toThrow) : IRateLimitingService
+    {
+        public Task<IDisposable> AcquireAsync(CancellationToken cancellationToken)
+            => Task.FromException<IDisposable>(toThrow);
     }
 
     [Fact]
