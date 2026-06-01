@@ -20,7 +20,7 @@ public sealed class QueryPlanTool
     [McpServerTool(
         Name = "get_query_plan",
         Title = "Get Query Execution Plan",
-        ReadOnly = true,
+        ReadOnly = false,
         Idempotent = true)]
     [Description("Get the estimated or actual XML execution plan for a SELECT query. " +
         "Estimated plans show the optimizer's plan without executing. " +
