@@ -32,7 +32,7 @@ internal sealed class ToolsetManager : IToolsetManager
             ToolRegistry.FirstResponderKitTools),
         ["darling_data"] = new(
             "darling_data",
-            "Erik Darling's diagnostic toolkit — sp_PressureDetector, sp_QuickieStore, sp_HealthParser, sp_LogHunter, sp_HumanEventsBlockViewer, sp_IndexCleanup, sp_QueryReproBuilder for pressure analysis, query store insights, and blocking investigation.",
+            "Erik Darling's diagnostic toolkit — sp_PressureDetector, sp_QuickieStore, sp_QuickieCache, sp_HealthParser, sp_LogHunter, sp_HumanEventsBlockViewer, sp_IndexCleanup, sp_QueryReproBuilder for pressure analysis, query store and plan cache insights, and blocking investigation.",
             opts => opts.EnableDarlingData,
             ToolRegistry.DarlingDataTools),
         ["whoisactive"] = new(

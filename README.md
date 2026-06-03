@@ -277,7 +277,7 @@ The server loads configuration from multiple sources. Higher-priority sources ov
 | `MaxConcurrentQueries` | 5 | Maximum number of SQL queries that can execute concurrently |
 | `MaxQueriesPerMinute` | 60 | Maximum queries allowed per minute (token bucket rate limit) |
 | `EnableFirstResponderKit` | false | Enable First Responder Kit diagnostic tools (sp_Blitz, sp_BlitzFirst, sp_BlitzCache, sp_BlitzIndex, sp_BlitzWho, sp_BlitzLock) |
-| `EnableDarlingData` | false | Enable DarlingData diagnostic tools (sp_PressureDetector, sp_QuickieStore, sp_HealthParser, sp_LogHunter, sp_HumanEventsBlockViewer, sp_IndexCleanup, sp_QueryReproBuilder) |
+| `EnableDarlingData` | false | Enable DarlingData diagnostic tools (sp_PressureDetector, sp_QuickieStore, sp_QuickieCache, sp_HealthParser, sp_LogHunter, sp_HumanEventsBlockViewer, sp_IndexCleanup, sp_QueryReproBuilder) |
 | `EnableWhoIsActive` | false | Enable sp_WhoIsActive session monitoring |
 | `EnableDynamicToolsets` | false | Enable progressive tool discovery — DBA tools load on demand via 3 meta-tools instead of at startup. Reduces initial context window usage. The `Enable*` flags still control which toolsets are allowed. |
 | `AzureKeyVaultUri` | — | Azure Key Vault URI (e.g., `https://myvault.vault.azure.net/`). When set, secrets from the vault are added as a configuration source using [`DefaultAzureCredential`](https://learn.microsoft.com/en-us/dotnet/api/azure.identity.defaultazurecredential). Key Vault secret names use `--` as a section separator (e.g., a secret named `SqlAugur--Servers--prod--ConnectionString` maps to `SqlAugur:Servers:prod:ConnectionString`). |
@@ -286,7 +286,7 @@ The server loads configuration from multiple sources. Higher-priority sources ov
 
 ## Tools
 
-The server provides 30 tools organized into toolsets. Six core tools are always available. Additional toolsets are loaded at startup (static mode) or on demand (dynamic mode).
+The server provides 31 tools organized into toolsets. Six core tools are always available. Additional toolsets are loaded at startup (static mode) or on demand (dynamic mode).
 
 ### Core Tools
 
@@ -353,7 +353,7 @@ Install from: [github.com/BrentOzarULTD/SQL-Server-First-Responder-Kit](https://
 </details>
 
 <details>
-<summary><strong>DarlingData</strong> (7 tools) — requires <code>EnableDarlingData: true</code></summary>
+<summary><strong>DarlingData</strong> (8 tools) — requires <code>EnableDarlingData: true</code></summary>
 
 Install from: [github.com/erikdarling/DarlingData](https://github.com/erikdarling/DarlingData)
 
@@ -361,6 +361,7 @@ Install from: [github.com/erikdarling/DarlingData](https://github.com/erikdarlin
 |------|-------------|
 | `sp_pressure_detector` | Diagnoses CPU and memory pressure — resource bottlenecks, high-CPU queries, memory grants, disk latency. |
 | `sp_quickie_store` | Query Store analysis — top resource-consuming queries, plan regressions, wait statistics. |
+| `sp_quickie_cache` | Plan cache analysis — high-impact queries ranked by impact score over the `dm_exec_*_stats` DMVs (the plan-cache companion to `sp_quickie_store`). |
 | `sp_health_parser` | Parses the `system_health` extended event session for historical waits, disk latency, CPU, memory, and locking. |
 | `sp_log_hunter` | Searches SQL Server error logs for errors, warnings, and custom messages. |
 | `sp_human_events_block_viewer` | Analyzes blocking events from `sp_HumanEvents` sessions — blocking chains, lock details, waits. |
