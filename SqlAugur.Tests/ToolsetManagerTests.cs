@@ -318,7 +318,7 @@ public class ToolsetManagerTests
             sp);
 
         manager.EnableToolset("darling_data");
-        Assert.Equal(7, mcpOptions.ToolCollection.Count);
+        Assert.Equal(8, mcpOptions.ToolCollection.Count);
     }
 
     [Fact]

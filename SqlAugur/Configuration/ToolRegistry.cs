@@ -43,6 +43,7 @@ internal static class ToolRegistry
     [
         typeof(PressureDetectorTool),
         typeof(QuickieStoreTool),
+        typeof(QuickieCacheTool),
         typeof(HealthParserTool),
         typeof(LogHunterTool),
         typeof(HumanEventsBlockViewerTool),

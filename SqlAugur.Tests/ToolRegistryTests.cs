@@ -84,12 +84,13 @@ public class ToolRegistryTests
         Assert.Contains(typeof(HumanEventsBlockViewerTool), ToolRegistry.DarlingDataTools);
         Assert.Contains(typeof(IndexCleanupTool), ToolRegistry.DarlingDataTools);
         Assert.Contains(typeof(QueryReproBuilderTool), ToolRegistry.DarlingDataTools);
+        Assert.Contains(typeof(QuickieCacheTool), ToolRegistry.DarlingDataTools);
     }
 
     [Fact]
     public void DarlingDataTools_HasExactCount()
     {
-        Assert.Equal(7, ToolRegistry.DarlingDataTools.Length);
+        Assert.Equal(8, ToolRegistry.DarlingDataTools.Length);
     }
 
     [Fact]
@@ -188,12 +189,12 @@ public class ToolRegistryTests
     }
 
     [Fact]
-    public void GetToolTypes_DarlingDataOnly_Returns19()
+    public void GetToolTypes_DarlingDataOnly_Returns20()
     {
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: false, enableDarlingData: true, enableWhoIsActive: false).ToList();
 
-        Assert.Equal(19, types.Count);
+        Assert.Equal(20, types.Count);
         Assert.DoesNotContain(typeof(BlitzTool), types);
         Assert.Contains(typeof(PressureDetectorTool), types);
         Assert.DoesNotContain(typeof(WhoIsActiveTool), types);
@@ -217,7 +218,7 @@ public class ToolRegistryTests
         var types = ToolRegistry.GetToolTypes(
             enableFirstResponderKit: true, enableDarlingData: true, enableWhoIsActive: true).ToList();
 
-        Assert.Equal(27, types.Count);
+        Assert.Equal(28, types.Count);
     }
 
     // ───────────────────────────────────────────────
