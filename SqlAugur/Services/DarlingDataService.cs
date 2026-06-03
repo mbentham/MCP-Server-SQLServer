@@ -129,6 +129,41 @@ public sealed class DarlingDataService : StoredProcedureServiceBase, IDarlingDat
         return await ExecuteProcedureAsync(serverName, "sp_QuickieStore", parameters, formatOptions, cancellationToken);
     }
 
+    public async Task<string> ExecuteQuickieCacheAsync(
+        string serverName,
+        string? databaseName,
+        string? sortOrder,
+        int? top,
+        DateTime? startDate,
+        DateTime? endDate,
+        int? minimumExecutionCount,
+        bool? ignoreSystemDatabases,
+        double? impactThreshold,
+        bool? findSingleUsePlans,
+        bool? findDuplicatePlans,
+        bool? includeQueryPlans,
+        bool? verbose,
+        CancellationToken cancellationToken)
+    {
+        var parameters = new Dictionary<string, object?>();
+        AddIfNotNull(parameters, "@database_name", databaseName);
+        AddIfNotNull(parameters, "@sort_order", sortOrder);
+        AddIfNotNull(parameters, "@top", top);
+        AddIfNotNull(parameters, "@start_date", startDate);
+        AddIfNotNull(parameters, "@end_date", endDate);
+        AddIfNotNull(parameters, "@minimum_execution_count", minimumExecutionCount);
+        AddBoolParam(parameters, "@ignore_system_databases", ignoreSystemDatabases);
+        // @impact_threshold is decimal(3,2); convert from the double-typed API parameter
+        // so the SqlParameter is a decimal rather than a float.
+        if (impactThreshold.HasValue)
+            parameters["@impact_threshold"] = (decimal)impactThreshold.Value;
+        AddBoolParam(parameters, "@find_single_use_plans", findSingleUsePlans);
+        AddBoolParam(parameters, "@find_duplicate_plans", findDuplicatePlans);
+
+        var formatOptions = BuildQuickieCacheOptions(includeQueryPlans, verbose);
+        return await ExecuteProcedureAsync(serverName, "sp_QuickieCache", parameters, formatOptions, cancellationToken);
+    }
+
     public async Task<string> ExecuteHealthParserAsync(
         string serverName,
         string? whatToCheck,

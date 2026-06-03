@@ -122,6 +122,14 @@ public class DarlingDataServiceTests
     }
 
     [Fact]
+    public async Task QuickieCache_UnknownServer_ThrowsArgumentException()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
+            _service.ExecuteQuickieCacheAsync("bad", null, null, null, null, null, null, null, null, null, null, null, null, CancellationToken.None));
+        Assert.Contains("bad", ex.Message);
+    }
+
+    [Fact]
     public async Task HealthParser_UnknownServer_ThrowsArgumentException()
     {
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>

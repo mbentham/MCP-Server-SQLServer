@@ -45,6 +45,22 @@ public interface IDarlingDataService
         bool? verbose,
         CancellationToken cancellationToken);
 
+    Task<string> ExecuteQuickieCacheAsync(
+        string serverName,
+        string? databaseName,
+        string? sortOrder,
+        int? top,
+        DateTime? startDate,
+        DateTime? endDate,
+        int? minimumExecutionCount,
+        bool? ignoreSystemDatabases,
+        double? impactThreshold,
+        bool? findSingleUsePlans,
+        bool? findDuplicatePlans,
+        bool? includeQueryPlans,
+        bool? verbose,
+        CancellationToken cancellationToken);
+
     Task<string> ExecuteHealthParserAsync(
         string serverName,
         string? whatToCheck,
