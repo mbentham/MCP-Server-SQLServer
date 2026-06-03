@@ -36,6 +36,7 @@ public class DarlingDataServiceTests
     [InlineData("sp_HumanEventsBlockViewer")]
     [InlineData("sp_IndexCleanup")]
     [InlineData("sp_QueryReproBuilder")]
+    [InlineData("sp_QuickieCache")]
     public void AllowedProcedure_IsInWhitelist(string procedureName)
     {
         Assert.Contains(procedureName, DarlingDataService.AllowedProcedures);
@@ -165,9 +166,9 @@ public class DarlingDataServiceTests
     // ───────────────────────────────────────────────
 
     [Fact]
-    public void AllowedProcedures_HasExactly7Entries()
+    public void AllowedProcedures_HasExactly8Entries()
     {
-        Assert.Equal(7, DarlingDataService.AllowedProcedures.Count);
+        Assert.Equal(8, DarlingDataService.AllowedProcedures.Count);
     }
 
     [Fact]

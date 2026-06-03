@@ -8,7 +8,7 @@ public sealed class DarlingDataService : StoredProcedureServiceBase, IDarlingDat
 {
     internal static readonly HashSet<string> AllowedProcedures = new(StringComparer.OrdinalIgnoreCase)
     {
-        "sp_PressureDetector", "sp_QuickieStore", "sp_HealthParser",
+        "sp_PressureDetector", "sp_QuickieStore", "sp_QuickieCache", "sp_HealthParser",
         "sp_LogHunter", "sp_HumanEventsBlockViewer", "sp_IndexCleanup",
         "sp_QueryReproBuilder"
     };
