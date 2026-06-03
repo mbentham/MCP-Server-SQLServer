@@ -86,6 +86,36 @@ public class DarlingDataFormatOptionsTests
     }
 
     // ───────────────────────────────────────────────
+    // QuickieCache
+    // ───────────────────────────────────────────────
+
+    [Fact]
+    public void QuickieCache_Default_ExcludesQueryPlan()
+    {
+        var options = DarlingDataService.BuildQuickieCacheOptions(null, null);
+
+        Assert.Contains("query_plan", options.ExcludedColumns);
+        Assert.Equal(1000, options.TruncatedColumns["query_text"]);
+    }
+
+    [Fact]
+    public void QuickieCache_IncludeQueryPlans_KeepsQueryPlan()
+    {
+        var options = DarlingDataService.BuildQuickieCacheOptions(includeQueryPlans: true, verbose: null);
+
+        Assert.DoesNotContain("query_plan", options.ExcludedColumns);
+    }
+
+    [Fact]
+    public void QuickieCache_Verbose_ReturnsEmptyExclusions()
+    {
+        var options = DarlingDataService.BuildQuickieCacheOptions(null, verbose: true);
+
+        Assert.Empty(options.ExcludedColumns);
+        Assert.Equal(int.MaxValue, options.MaxStringLength);
+    }
+
+    // ───────────────────────────────────────────────
     // HealthParser
     // ───────────────────────────────────────────────
 

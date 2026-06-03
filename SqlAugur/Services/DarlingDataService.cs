@@ -355,6 +355,26 @@ public sealed class DarlingDataService : StoredProcedureServiceBase, IDarlingDat
         };
     }
 
+    internal static ResultSetFormatOptions BuildQuickieCacheOptions(bool? includeQueryPlans, bool? verbose)
+    {
+        if (verbose == true)
+            return new ResultSetFormatOptions { MaxStringLength = int.MaxValue };
+
+        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "query_plan" };
+
+        if (includeQueryPlans == true)
+            excluded.Remove("query_plan");
+
+        return new ResultSetFormatOptions
+        {
+            ExcludedColumns = excluded,
+            TruncatedColumns = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["query_text"] = 1000
+            }
+        };
+    }
+
     internal static ResultSetFormatOptions BuildHealthParserOptions(bool? includeQueryPlans, bool? includeXmlReports, bool? verbose, int? maxRows = null)
     {
         if (verbose == true)
