@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-06-04
+
+### Added
+- `sp_quickie_cache` tool — runs Erik Darling's `sp_QuickieCache` to analyse the plan cache for high-impact queries using a Pareto / impact-score approach over the `dm_exec_*_stats` DMVs (the plan-cache companion to `sp_quickie_store`). Excludes the `query_plan` XML column and truncates `query_text` by default; honours `includeQueryPlans` and `verbose`.
+
 ## [1.5.0] - 2026-04-23
 
 ### Added

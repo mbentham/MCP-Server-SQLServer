@@ -46,7 +46,7 @@ Start with [Installation](#installation) for exact commands and file paths.
 
 - **Response size optimisation** — DBA tools exclude verbose columns (XML query plans, deadlock graphs, metric breakdowns) and truncate long strings by default, reducing response sizes by 90–99%. Use `verbose` and `includeQueryPlans` parameters to get full untruncated output when needed.
 
-- **Progressive discovery** — Up to 29 tools organized into toolsets that load on demand. Only 6 core tools are exposed initially, keeping the AI's context window small and reducing token usage. Additional toolsets are discovered and enabled as needed.
+- **Progressive discovery** — Up to 31 tools organized into toolsets that load on demand. Only 6 core tools are exposed initially, keeping the AI's context window small and reducing token usage. Additional toolsets are discovered and enabled as needed.
 
 ## Features
 
@@ -276,7 +276,7 @@ The server loads configuration from multiple sources. Higher-priority sources ov
 | `CommandTimeoutSeconds` | 30 | SQL command timeout for all queries and procedures |
 | `MaxConcurrentQueries` | 5 | Maximum number of SQL queries that can execute concurrently |
 | `MaxQueriesPerMinute` | 60 | Maximum queries allowed per minute (token bucket rate limit) |
-| `EnableFirstResponderKit` | false | Enable First Responder Kit diagnostic tools (sp_Blitz, sp_BlitzFirst, sp_BlitzCache, sp_BlitzIndex, sp_BlitzWho, sp_BlitzLock) |
+| `EnableFirstResponderKit` | false | Enable First Responder Kit diagnostic tools (sp_Blitz, sp_BlitzFirst, sp_BlitzCache, sp_BlitzIndex, sp_BlitzWho, sp_BlitzLock, sp_BlitzPlanCompare) |
 | `EnableDarlingData` | false | Enable DarlingData diagnostic tools (sp_PressureDetector, sp_QuickieStore, sp_QuickieCache, sp_HealthParser, sp_LogHunter, sp_HumanEventsBlockViewer, sp_IndexCleanup, sp_QueryReproBuilder) |
 | `EnableWhoIsActive` | false | Enable sp_WhoIsActive session monitoring |
 | `EnableDynamicToolsets` | false | Enable progressive tool discovery — DBA tools load on demand via 3 meta-tools instead of at startup. Reduces initial context window usage. The `Enable*` flags still control which toolsets are allowed. |
@@ -393,8 +393,8 @@ When `EnableDynamicToolsets` is true, only core tools load at startup. Three met
 
 **Example flow:**
 1. AI calls `list_toolsets` — sees `first_responder_kit` is "available" (configured but not yet enabled)
-2. AI calls `get_toolset_tools("first_responder_kit")` — reviews the 6 tools and their parameters
-3. AI calls `enable_toolset("first_responder_kit")` — the 6 tools are now registered and usable
+2. AI calls `get_toolset_tools("first_responder_kit")` — reviews the 7 tools and their parameters
+3. AI calls `enable_toolset("first_responder_kit")` — the 7 tools are now registered and usable
 4. AI calls `sp_blitz` — runs the health check as normal
 
 In static mode (`EnableDynamicToolsets: false`), all enabled toolsets load at startup and the discovery tools are not registered. Schema Exploration and Diagrams toolsets are always loaded regardless of mode.
