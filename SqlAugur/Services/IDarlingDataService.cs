@@ -48,7 +48,6 @@ public interface IDarlingDataService
     Task<string> ExecuteQuickieCacheAsync(
         string serverName,
         string? databaseName,
-        string? sortOrder,
         int? top,
         DateTime? startDate,
         DateTime? endDate,

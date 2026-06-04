@@ -27,8 +27,6 @@ public sealed class QuickieCacheTool
         string serverName,
         [Description("Database to analyze (NULL = all user databases)")]
         string? databaseName = null,
-        [Description("Sort results by: cpu (default), duration, reads, writes, memory, spills, executions")]
-        string? sortOrder = null,
         [Description("Number of top queries per metric to return (1-100, default 10)")]
         int? top = null,
         [Description("Only include plans created on or after this date (yyyy-MM-dd or yyyy-MM-dd HH:mm:ss)")]
@@ -56,7 +54,7 @@ public sealed class QuickieCacheTool
 
         return await ToolHelper.ExecuteAsync(_rateLimiter, () =>
             _darlingDataService.ExecuteQuickieCacheAsync(
-                serverName, databaseName, sortOrder, top, startDate, endDate,
+                serverName, databaseName, top, startDate, endDate,
                 minimumExecutionCount, ignoreSystemDatabases, impactThreshold,
                 findSingleUsePlans, findDuplicatePlans,
                 includeQueryPlans, verbose, cancellationToken), cancellationToken);

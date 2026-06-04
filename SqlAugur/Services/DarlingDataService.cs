@@ -132,7 +132,6 @@ public sealed class DarlingDataService : StoredProcedureServiceBase, IDarlingDat
     public async Task<string> ExecuteQuickieCacheAsync(
         string serverName,
         string? databaseName,
-        string? sortOrder,
         int? top,
         DateTime? startDate,
         DateTime? endDate,
@@ -147,7 +146,6 @@ public sealed class DarlingDataService : StoredProcedureServiceBase, IDarlingDat
     {
         var parameters = new Dictionary<string, object?>();
         AddIfNotNull(parameters, "@database_name", databaseName);
-        AddIfNotNull(parameters, "@sort_order", sortOrder);
         AddIfNotNull(parameters, "@top", top);
         AddIfNotNull(parameters, "@start_date", startDate);
         AddIfNotNull(parameters, "@end_date", endDate);
