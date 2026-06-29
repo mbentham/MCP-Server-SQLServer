@@ -28,13 +28,13 @@ public class ToolHelperTests
     [Fact]
     public async Task ExecuteAsync_SocketException_WrapsAsMcpExceptionWithDetail()
     {
-        // A SocketException is what surfaces when the machine runs out of ephemeral TCP ports
-        // (sustained query volume churning sockets into TIME_WAIT). It is not one of the
-        // exception types ToolHelper historically translated, so it used to escape as an opaque
-        // "An error occurred invoking '<tool>'." with no detail. It must now surface as an
-        // McpException carrying the exception type and message so the failure is diagnosable.
+        // A SocketException is a transport-level exception type that ToolHelper does not explicitly
+        // translate (it is not Argument/InvalidOperation/SqlException), so it used to escape as an
+        // opaque "An error occurred invoking '<tool>'." with no detail. The broad catch-all must now
+        // surface it as an McpException carrying the exception type and message so any such failure
+        // is diagnosable rather than indistinguishable from a generic error.
         var rateLimiter = new NoOpRateLimiter();
-        var socketEx = new SocketException(10055); // WSAENOBUFS — no buffer space available
+        var socketEx = new SocketException(10055); // any socket error code — the value is irrelevant to the test
 
         var mcpEx = await Assert.ThrowsAsync<McpException>(
             () => ToolHelper.ExecuteAsync(rateLimiter, () => throw socketEx, TestContext.Current.CancellationToken));
