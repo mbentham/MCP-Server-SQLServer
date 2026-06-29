@@ -12,9 +12,12 @@ internal static class ToolHelper
     /// <summary>
     /// Executes an async tool operation with rate limiting and standardized exception handling.
     /// Acquires a rate limit lease before executing, and releases the concurrency slot on completion.
-    /// Re-throws client cancellation. Converts ArgumentException, InvalidOperationException, and
-    /// SqlException to McpException carrying their message; any other exception is converted to an
-    /// McpException carrying its type name and message so failures are never opaque.
+    /// A client cancellation (the request's token fired) is surfaced as an McpException with a clear
+    /// "cancelled by the MCP client, not a server fault" message — re-throwing the bare
+    /// OperationCanceledException would otherwise render as an opaque generic error. Converts
+    /// ArgumentException, InvalidOperationException, and SqlException to McpException carrying their
+    /// message; any other exception is converted to an McpException carrying its type name and message
+    /// so failures are never opaque.
     /// </summary>
     public static async Task<string> ExecuteAsync(IRateLimitingService rateLimiter, Func<Task<string>> operation,
         CancellationToken cancellationToken = default)
@@ -28,9 +31,21 @@ internal static class ToolHelper
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            // The client cancelled the request — let the MCP framework handle it as a cancellation
-            // rather than masking it as a tool error. Must come before the broad catch-all below.
-            throw;
+            // The request's cancellation token fired — the MCP client cancelled this call, typically
+            // because its per-call timeout elapsed while the call was queued behind the concurrency
+            // limiter, or because too many calls ran in parallel against the single stdio server.
+            // Re-throwing the bare OperationCanceledException is rendered by the MCP framework as the
+            // opaque "An error occurred invoking '<tool>'." — indistinguishable from a real connection
+            // fault, which has caused this to be misdiagnosed as a SQL Server / network / VPN outage.
+            // Surface a clear, self-identifying message instead so the cause is obvious from the client
+            // and the logs. (An OperationCanceledException whose token was NOT cancelled is not a client
+            // cancellation — the filter above excludes it, so it falls through to the catch-all and
+            // surfaces its own type and message.)
+            throw new McpException(
+                "Request cancelled by the MCP client (typically its per-call timeout elapsed while this " +
+                "call was queued behind the concurrency limit, or too many calls ran in parallel against " +
+                "the single SqlAugur server). This is a client-side cancellation, not a SQL Server or " +
+                "network fault — reduce concurrent calls or retry.");
         }
         catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or SqlException)
         {

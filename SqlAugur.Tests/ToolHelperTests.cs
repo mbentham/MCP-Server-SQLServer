@@ -65,18 +65,42 @@ public class ToolHelperTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_OperationCanceled_WhenTokenCancelled_Propagates()
+    public async Task ExecuteAsync_OperationCanceled_WhenTokenCancelled_SurfacesClearCancellationMessage()
     {
-        // When the client cancels the request, the operation throws OperationCanceledException.
-        // This must propagate so the MCP framework handles it as a cancellation rather than
-        // masking it as a generic tool error. The broad catch-all must not swallow it.
+        // When the request's token fires, the MCP client cancelled the call (e.g. its per-call timeout
+        // elapsed while the call queued behind the concurrency limiter). Re-throwing the bare
+        // OperationCanceledException is rendered by the framework as the opaque "An error occurred
+        // invoking '<tool>'." — indistinguishable from a real connection fault, which got this
+        // misdiagnosed as a server/network/VPN outage. It must instead surface a clear McpException
+        // identifying it as a client-side cancellation.
         var rateLimiter = new NoOpRateLimiter();
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
-        await Assert.ThrowsAsync<OperationCanceledException>(
+        var mcpEx = await Assert.ThrowsAsync<McpException>(
             () => ToolHelper.ExecuteAsync(rateLimiter,
                 () => throw new OperationCanceledException(cts.Token), cts.Token));
+
+        Assert.Contains("cancelled by the MCP client", mcpEx.Message);
+        Assert.Contains("not a SQL Server or network fault", mcpEx.Message);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationCanceled_WhenTokenNotCancelled_WrapsAsMcpExceptionWithType()
+    {
+        // An OperationCanceledException whose token was NOT cancelled is not a client cancellation
+        // (e.g. an internal/library timeout surfacing as OCE). The IsCancellationRequested filter must
+        // exclude it so it is not mislabelled as a client cancellation — it falls through to the
+        // catch-all and surfaces its own exception type so the real cause stays visible.
+        var rateLimiter = new NoOpRateLimiter();
+        using var cts = new CancellationTokenSource(); // never cancelled
+
+        var mcpEx = await Assert.ThrowsAsync<McpException>(
+            () => ToolHelper.ExecuteAsync(rateLimiter,
+                () => throw new OperationCanceledException("inner timeout, token not cancelled"),
+                cts.Token));
+
+        Assert.Contains(nameof(OperationCanceledException), mcpEx.Message);
     }
 
     private static SqlException CreateSqlException(string message)
