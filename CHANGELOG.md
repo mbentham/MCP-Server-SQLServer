@@ -6,10 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-07-02
+
+### Changed
+- `sp_quickie_cache`: removed the `sortOrder` parameter — results are always ranked by `impact_score`, so the parameter had no effect.
+
+### Fixed
+- Client-side cancellations now surface as a clear cancellation message instead of an opaque error.
+
 ## [1.6.0] - 2026-06-04
 
 ### Added
 - `sp_quickie_cache` tool — runs Erik Darling's `sp_QuickieCache` to analyse the plan cache for high-impact queries using a Pareto / impact-score approach over the `dm_exec_*_stats` DMVs (the plan-cache companion to `sp_quickie_store`). Excludes the `query_plan` XML column and truncates `query_text` by default; honours `includeQueryPlans` and `verbose`.
+
+### Changed
+- `get_query_plan` is no longer annotated read-only — it writes a `.sqlplan` file to disk.
+- Updated all NuGet dependencies to latest; no known CVEs.
+
+### Fixed
+- Rate-limit rejections and untranslated exceptions now surface as clear error messages instead of opaque errors.
 
 ## [1.5.0] - 2026-04-23
 
