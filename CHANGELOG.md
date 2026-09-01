@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-09-01
+
+### Changed
+- Updated ModelContextProtocol 1.3.0 → 2.2.0 (major; no SqlAugur-facing API changes — compiles and runs unchanged, brings 2026-07-28 protocol revision support).
+- Updated Microsoft.Data.SqlClient 7.0.2, Microsoft.Extensions.Hosting / System.Threading.RateLimiting 10.0.11, Azure.Extensions.AspNetCore.Configuration.Secrets 1.5.2, Microsoft.SqlServer.TransactSql.ScriptDom 180.102.0, Microsoft.NET.Test.Sdk 18.9.0.
+
+### Security
+- Updated Testcontainers 4.12.0 → 4.14.0 (integration tests only), clearing the transitive SSH.NET 2025.1.0 high-severity advisory GHSA-q939-rpr3-3284; the vulnerability scan is now clean across all projects.
+
 ## [1.6.2] - 2026-09-01
 
 ### Fixed
