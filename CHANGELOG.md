@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-09-01
+
+### Fixed
+- Tool calls with wrong argument names (e.g. `server`/`database` instead of `serverName`/`databaseName`) now return a corrective message naming the expected arguments, instead of the MCP SDK's bare "An error occurred invoking 'tool'." binding failure. The opaque failure gave calling models no hint, so they repeated the mistake for the rest of the session — presenting as an intermittent "all connecting tools are down" outage that survived server restarts and was misdiagnosed as VPN/network trouble.
+
 ## [1.6.1] - 2026-07-02
 
 ### Changed

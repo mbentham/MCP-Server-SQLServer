@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using SqlAugur.Configuration;
 using System.Reflection;
@@ -102,6 +103,27 @@ builder.Services
         };
     })
     .WithStdioServerTransport()
+    .WithRequestFilters(requestFilters =>
+    {
+        // Reject wrong argument names with a corrective message before dispatch. The SDK's
+        // own binding failure is a bare "An error occurred invoking 'tool'." with no hint,
+        // which calling models cannot self-correct from (see ArgumentNameValidator).
+        requestFilters.AddCallToolFilter(next => async (request, cancellationToken) =>
+        {
+            if (request.MatchedPrimitive is McpServerTool tool &&
+                ArgumentNameValidator.Validate(
+                    tool.ProtocolTool.InputSchema, request.Params?.Arguments?.Keys) is { } argumentError)
+            {
+                return new CallToolResult
+                {
+                    IsError = true,
+                    Content = [new TextContentBlock { Text = argumentError }]
+                };
+            }
+
+            return await next(request, cancellationToken);
+        });
+    })
     .WithTools(ToolRegistry.GetToolTypes(
         enableFirstResponderKit, enableDarlingData, enableWhoIsActive, enableDynamicToolsets));
 
